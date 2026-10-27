@@ -1,0 +1,16 @@
+﻿<resources>
+    <item name="time_hour" type="id" />
+    <item name="time_minute" type="id" />
+    <item name="time_period" type="id" />
+    <item name="period_am" type="id" />
+    <item name="period_pm" type="id" />
+    <item name="lead_seconds" type="id" />
+    <item name="alarm_enabled" type="id" />
+    <item name="weekday_monday" type="id" />
+    <item name="weekday_tuesday" type="id" />
+    <item name="weekday_wednesday" type="id" />
+    <item name="weekday_thursday" type="id" />
+    <item name="weekday_friday" type="id" />
+    <item name="weekday_saturday" type="id" />
+    <item name="weekday_sunday" type="id" />
+</resources>
