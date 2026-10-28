@@ -7,6 +7,8 @@ Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입�
 
 이 앱은 수익 창출을 하지 않는 비영리 개인 프로젝트입니다. 광고, 유료 판매, 인앱 결제를 통한 수익을 얻지 않습니다.
 
+변조하지마시고 자유로이 사용해주세요. 다만 출처는 남겨 주시기 바랍니다.
+
 - 우사기 얼굴 원본: [치이카와 마켓 공식 우사기 컬렉션](https://chiikawamarket.jp/collections/usagi)
 - 이미지 URL: https://chiikawamarket.jp/cdn/shop/collections/03usagi.png?v=1766471469
 
