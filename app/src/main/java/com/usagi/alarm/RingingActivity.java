@@ -16,6 +16,7 @@ import android.view.WindowInsetsController;
 import android.view.Gravity;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.window.OnBackInvokedDispatcher;
 
 public final class RingingActivity extends Activity {
     static volatile boolean visible;
@@ -34,6 +35,10 @@ public final class RingingActivity extends Activity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        if (Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::stopAlarm);
+        }
         if (Build.VERSION.SDK_INT >= 27) {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
@@ -65,10 +70,7 @@ public final class RingingActivity extends Activity {
         stop.setElevation(6 * density);
         stop.setVisibility(saved != null && saved.getBoolean("stopVisible") ? View.VISIBLE : View.INVISIBLE);
         clock.setOnClickListener(view -> stop.setVisibility(View.VISIBLE));
-        stop.setOnClickListener(view -> {
-            startService(new Intent(this, AlarmService.class).setAction(AlarmService.STOP));
-            finish();
-        });
+        stop.setOnClickListener(view -> stopAlarm());
         int margin = (int) (20 * density);
         FrameLayout.LayoutParams button = new FrameLayout.LayoutParams((int) (160 * density),
                 (int) (56 * density), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
@@ -76,6 +78,21 @@ public final class RingingActivity extends Activity {
         layout.addView(stop, button);
         setContentView(layout);
         hideSystemBars();
+    }
+
+    private void stopAlarm() {
+        startService(new Intent(this, AlarmService.class).setAction(AlarmService.STOP));
+        finish();
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override public void onBackPressed() {
+        stopAlarm();
+    }
+
+    @Override protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        stopAlarm();
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {

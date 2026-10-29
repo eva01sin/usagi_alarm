@@ -55,6 +55,8 @@ public final class AlarmInstrumentation extends Instrumentation {
             if (selected.equals("all") || selected.equals("repeat")) run("repeat", this::repeat);
             if (selected.equals("all") || selected.equals("preDismiss")) run("preDismiss", this::preDismiss);
             if (selected.equals("all") || selected.equals("artwork")) run("artwork", this::artwork);
+            if (selected.equals("all") || selected.equals("backDismiss")) run("backDismiss", this::backDismiss);
+            if (selected.equals("all") || selected.equals("homeDismiss")) run("homeDismiss", this::homeDismiss);
             result.putString("stream", "\nPASS: " + passed + " Android integration scenarios\n");
         } catch (Throwable error) {
             result.putString("stream", "\nFAIL: " + error + "\n" + android.util.Log.getStackTraceString(error));
@@ -226,6 +228,55 @@ public final class AlarmInstrumentation extends Instrumentation {
         long end = target + 1500;
         while (System.currentTimeMillis() < end) SystemClock.sleep(50);
         check(!AlarmService.active, "Dismissed occurrence rang again at MAIN");
+    }
+
+    private void homeDismiss() throws Exception {
+        open(MainActivity.class);
+        long target = schedule(12, 6, 127);
+        await(() -> AlarmService.active, 9000, "Pre-alarm did not start");
+        open(RingingActivity.class);
+        check(System.currentTimeMillis() < target, "Home test missed pre-alarm window");
+        getUiAutomation().executeShellCommand("input keyevent KEYCODE_HOME").close();
+        await(() -> !AlarmService.active, 3000, "Home did not stop pre-alarm");
+        check(store.enabled() && store.target() > target, "Home must preserve next repeat");
+        long end = target + 1500;
+        while (System.currentTimeMillis() < end) SystemClock.sleep(50);
+        check(!AlarmService.active, "Home-dismissed occurrence rang again at MAIN");
+
+        open(MainActivity.class);
+        runOnMainSync(() -> context.startForegroundService(new Intent(context, AlarmService.class)
+                .putExtra("target", System.currentTimeMillis()).putExtra("lead", 0)));
+        await(() -> AlarmService.active, 3000, "Main playback did not start");
+        long next = store.target();
+        open(RingingActivity.class);
+        getUiAutomation().executeShellCommand("input keyevent KEYCODE_HOME").close();
+        await(() -> !AlarmService.active, 3000, "Home did not stop main alarm");
+        check(store.enabled() && store.target() == next, "Main home changed repeat reservation");
+    }
+
+    private void backDismiss() {
+        open(MainActivity.class);
+        long target = schedule(12, 6, 127);
+        await(() -> AlarmService.active, 9000, "Pre-alarm did not start");
+        Activity screen = open(RingingActivity.class);
+        check(System.currentTimeMillis() < target, "Back test missed pre-alarm window");
+        sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK);
+        await(() -> !AlarmService.active, 3000, "Back did not stop pre-alarm");
+        check(screen.isFinishing() || screen.isDestroyed(), "Back did not close alarm screen");
+        check(store.enabled() && store.target() > target, "Back must preserve next repeat");
+        long end = target + 1500;
+        while (System.currentTimeMillis() < end) SystemClock.sleep(50);
+        check(!AlarmService.active, "Back-dismissed occurrence rang again at MAIN");
+
+        open(MainActivity.class);
+        runOnMainSync(() -> context.startForegroundService(new Intent(context, AlarmService.class)
+                .putExtra("target", System.currentTimeMillis()).putExtra("lead", 0)));
+        await(() -> AlarmService.active, 3000, "Main playback did not start");
+        long next = store.target();
+        open(RingingActivity.class);
+        sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK);
+        await(() -> !AlarmService.active, 3000, "Back did not stop main alarm");
+        check(store.enabled() && store.target() == next, "Main back changed repeat reservation");
     }
 
     private UsagiClockView findClock(View view) {

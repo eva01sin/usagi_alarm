@@ -16,6 +16,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".RingingActivity" android:exported="false" android:launchMode="singleTop"
+            android:enableOnBackInvokedCallback="true"
             android:screenOrientation="landscape" />
         <receiver android:name=".AlarmReceiver" android:exported="false" />
         <receiver android:name=".RestoreReceiver" android:exported="false">
