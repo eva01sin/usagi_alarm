@@ -23,6 +23,7 @@ public final class RingingActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private UsagiClockView clock;
     private Button stop;
+    private View controls;
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
             if (!AlarmService.active) { finish(); return; }
@@ -69,13 +70,30 @@ public final class RingingActivity extends Activity {
         stop.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33754B32), decoration, null));
         stop.setElevation(6 * density);
         stop.setVisibility(saved != null && saved.getBoolean("stopVisible") ? View.VISIBLE : View.INVISIBLE);
-        clock.setOnClickListener(view -> stop.setVisibility(View.VISIBLE));
+        android.widget.LinearLayout row = new android.widget.LinearLayout(this);
+        row.setGravity(Gravity.CENTER);
+        controls = row;
+        controls.setVisibility(stop.getVisibility());
+        stop.setVisibility(View.VISIBLE);
+        clock.setOnClickListener(view -> controls.setVisibility(View.VISIBLE));
         stop.setOnClickListener(view -> stopAlarm());
         int margin = (int) (20 * density);
-        FrameLayout.LayoutParams button = new FrameLayout.LayoutParams((int) (160 * density),
+        FrameLayout.LayoutParams button = new FrameLayout.LayoutParams(-2,
                 (int) (56 * density), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         button.setMargins(margin, margin, margin, margin);
-        layout.addView(stop, button);
+        Button snooze = new Button(this);
+        snooze.setText("5분만...");
+        snooze.setTextColor(UsagiClockView.INK);
+        snooze.setTextSize(18);
+        snooze.setBackground(stop.getBackground().getConstantState().newDrawable().mutate());
+        snooze.setElevation(6 * density);
+        snooze.setOnClickListener(view ->
+                startService(new Intent(this, AlarmService.class).setAction(AlarmService.SNOOZE)));
+        android.widget.LinearLayout.LayoutParams snoozeBounds = new android.widget.LinearLayout.LayoutParams((int) (150 * density), -1);
+        snoozeBounds.rightMargin = (int) (8 * density);
+        row.addView(snooze, snoozeBounds);
+        row.addView(stop, new android.widget.LinearLayout.LayoutParams((int) (150 * density), -1));
+        layout.addView(row, button);
         setContentView(layout);
         hideSystemBars();
     }
@@ -96,7 +114,7 @@ public final class RingingActivity extends Activity {
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
-        state.putBoolean("stopVisible", stop.getVisibility() == View.VISIBLE);
+        state.putBoolean("stopVisible", controls.getVisibility() == View.VISIBLE);
         super.onSaveInstanceState(state);
     }
 

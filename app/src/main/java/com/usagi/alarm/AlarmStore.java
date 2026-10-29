@@ -12,6 +12,7 @@ final class AlarmStore {
     int leadSeconds() { return prefs.getInt("lead", 10); }
     boolean enabled() { return prefs.getBoolean("enabled", false); }
     long target() { return prefs.getLong("target", 0); }
+    long snoozeTarget() { return prefs.getLong("snooze", 0); }
     long generation() { return prefs.getLong("generation", 0); }
     String error() { return prefs.getString("error", ""); }
     void error(String text) { prefs.edit().putString("error", text).apply(); }

@@ -1,0 +1,22 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:padding="12dp" android:background="@drawable/widget_background">
+    <LinearLayout android:id="@+id/widget_content" android:layout_width="match_parent"
+        android:layout_height="match_parent" android:layout_toStartOf="@+id/widget_toggle"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:layout_width="56dp" android:layout_height="64dp"
+            android:src="@drawable/usagi_icon" android:scaleType="fitCenter"
+            android:contentDescription="@string/widget_name" />
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical" android:paddingStart="8dp" android:paddingEnd="4dp">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/widget_name" android:textColor="#51382B" android:textSize="16sp" android:textStyle="bold" />
+            <TextView android:id="@+id/widget_status" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:textColor="#51382B" android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <Button android:id="@+id/widget_toggle" android:layout_width="56dp" android:layout_height="48dp"
+        android:layout_alignParentEnd="true" android:layout_centerVertical="true"
+        android:minWidth="0dp" android:padding="0dp" android:text="@string/widget_enable"
+        android:textColor="#51382B" android:textSize="14sp" />
+</RelativeLayout>

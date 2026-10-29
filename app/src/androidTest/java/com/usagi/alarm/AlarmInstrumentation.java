@@ -57,6 +57,12 @@ public final class AlarmInstrumentation extends Instrumentation {
             if (selected.equals("all") || selected.equals("artwork")) run("artwork", this::artwork);
             if (selected.equals("all") || selected.equals("backDismiss")) run("backDismiss", this::backDismiss);
             if (selected.equals("all") || selected.equals("homeDismiss")) run("homeDismiss", this::homeDismiss);
+            if (selected.equals("all") || selected.equals("snooze")) {
+                run("snoozePre", () -> snooze(true));
+                run("snoozeMain", () -> snooze(false));
+            }
+            if (selected.equals("all") || selected.equals("widget")) run("widget", this::widget);
+            if (selected.equals("widgetHost")) run("widgetHost", this::widgetHost);
             result.putString("stream", "\nPASS: " + passed + " Android integration scenarios\n");
         } catch (Throwable error) {
             result.putString("stream", "\nFAIL: " + error + "\n" + android.util.Log.getStackTraceString(error));
@@ -305,7 +311,7 @@ public final class AlarmInstrumentation extends Instrumentation {
         await(this::quietPlayback, 3000, "Visible pre-alarm must use only a low-importance playback notification");
         runOnMainSync(() -> {
             Button stop = find(screen.getWindow().getDecorView(), "알람 끄기");
-            check(stop != null && stop.getVisibility() == View.INVISIBLE, "Stop must initially be hidden");
+            check(stop != null && !stop.isShown(), "Stop must initially be hidden");
             long now = SystemClock.uptimeMillis();
             android.view.MotionEvent down = android.view.MotionEvent.obtain(now, now,
                     android.view.MotionEvent.ACTION_DOWN, clock.getWidth() / 2f, clock.getHeight() / 2f, 0);
@@ -320,9 +326,10 @@ public final class AlarmInstrumentation extends Instrumentation {
             Button stop = find(screen.getWindow().getDecorView(), "알람 끄기");
             check(stop.isShown(), "Touch did not reveal stop button");
             View decor = screen.getWindow().getDecorView();
-            check(Math.abs(stop.getLeft() + stop.getWidth() / 2 - decor.getWidth() / 2) <= 1,
-                    "Stop button must be horizontally centered");
-            check(stop.getTop() > decor.getHeight() / 2, "Stop button must be at the bottom");
+            View controls = (View) stop.getParent();
+            check(Math.abs(controls.getLeft() + controls.getWidth() / 2 - decor.getWidth() / 2) <= 1,
+                    "Alarm controls must be horizontally centered");
+            check(controls.getTop() > decor.getHeight() / 2, "Alarm controls must be at the bottom");
             check(stop.getBackground() instanceof android.graphics.drawable.RippleDrawable,
                     "Stop button decoration missing");
         });
@@ -346,6 +353,104 @@ public final class AlarmInstrumentation extends Instrumentation {
                 .setAction(AlarmService.SCREEN_VISIBLE).putExtra("target", target).putExtra("lead", 10)));
         SystemClock.sleep(1000);
         check(!AlarmService.active, "A stale screen-visible command restarted a dismissed alarm");
+    }
+
+    private void snooze(boolean pre) {
+        open(MainActivity.class);
+        long occurrence = schedule(pre ? 12 : 1, pre ? 10 : 0, pre ? 127 : 0);
+        await(() -> AlarmService.active, 6000, "Alarm did not start");
+        Activity screen = open(RingingActivity.class);
+        click(screen, "5분만...");
+        await(() -> !AlarmService.active && store.snoozeTarget() > 0, 3000, "Snooze did not stop playback");
+        long retry = store.snoozeTarget();
+        check(Math.abs(retry - System.currentTimeMillis() - 300_000L) < 3000, "Snooze must be five minutes");
+        check(pre ? store.enabled() && store.target() > occurrence : !store.enabled(), "Repeat state changed");
+        check(context.getSystemService(android.app.AlarmManager.class).getNextAlarmClock().getTriggerTime() == retry,
+                "Snooze was not registered with AlarmManager");
+        runOnMainSync(() -> scheduler.restore(false));
+        check(store.snoozeTarget() == retry, "Restore lost snooze");
+        long nextRepeat = store.target();
+        // Keep the five-minute assertion above; accelerate only the delivery phase.
+        runOnMainSync(() -> {
+            store.prefs.edit().putLong("snooze", System.currentTimeMillis() + 2000).commit();
+            scheduler.restore(false);
+        });
+        await(() -> AlarmService.active && store.snoozeTarget() == 0, 6000, "Snooze did not ring");
+        check(AlarmService.activeLeadSeconds == 0, "Snooze must skip pre-alarm audio");
+        check(store.target() == nextRepeat, "Snooze delivery changed repeat");
+        screen = open(RingingActivity.class);
+        click(screen, "5분만...");
+        await(() -> !AlarmService.active && store.snoozeTarget() > 0, 3000, "Second snooze failed");
+        runOnMainSync(scheduler::disable);
+        check(store.snoozeTarget() == 0, "Disable must cancel snooze");
+    }
+
+    private void widget() {
+        Activity screen = open(MainActivity.class);
+        final View[] widget = new View[1];
+        runOnMainSync(() -> {
+            widget[0] = AlarmWidget.views(context).apply(context, new android.widget.FrameLayout(context));
+            check(((android.widget.TextView) widget[0].findViewById(R.id.widget_status)).getText().toString().contains("꺼져"),
+                    "Widget disabled status missing");
+            widget[0].findViewById(R.id.widget_toggle).performClick();
+        });
+        await(store::enabled, 3000, "Widget did not enable alarm");
+        runOnMainSync(() -> {
+            widget[0] = AlarmWidget.views(context).apply(context, new android.widget.FrameLayout(context));
+            check(((android.widget.TextView) widget[0].findViewById(R.id.widget_status)).getText().toString().contains("다음 알람"),
+                    "Widget next alarm missing");
+            check(scheduler.snooze(0), "Widget snooze setup failed");
+            widget[0] = AlarmWidget.views(context).apply(context, new android.widget.FrameLayout(context));
+            check(((android.widget.TextView) widget[0].findViewById(R.id.widget_status)).getText().toString().contains("다시 알림"),
+                    "Widget snooze status missing");
+            widget[0].findViewById(R.id.widget_toggle).performClick();
+        });
+        await(() -> !store.enabled() && store.snoozeTarget() == 0, 3000, "Widget did not cancel all reservations");
+        runOnMainSync(() -> screen.finish());
+    }
+
+    private void widgetHost() throws Exception {
+        Activity screen = open(MainActivity.class);
+        android.appwidget.AppWidgetHost host = new android.appwidget.AppWidgetHost(context, 501);
+        android.appwidget.AppWidgetManager manager = android.appwidget.AppWidgetManager.getInstance(context);
+        int id = host.allocateAppWidgetId();
+        try {
+            check(manager.bindAppWidgetIdIfAllowed(id, new android.content.ComponentName(context, AlarmWidget.class)),
+                    "Widget host binding requires emulator grantbind");
+            final View[] hosted = new View[1];
+            runOnMainSync(() -> {
+                host.startListening();
+                android.widget.FrameLayout frame = new android.widget.FrameLayout(screen);
+                frame.setBackgroundColor(0xffe9dfcd);
+                hosted[0] = host.createView(screen, id, manager.getAppWidgetInfo(id));
+                int density = (int) (screen.getResources().getDisplayMetrics().density * 100);
+                android.widget.FrameLayout.LayoutParams bounds = new android.widget.FrameLayout.LayoutParams(
+                        density * 350 / 100, density * 140 / 100, android.view.Gravity.CENTER);
+                frame.addView(hosted[0], bounds);
+                screen.setContentView(frame);
+                AlarmWidget.updateAll(context);
+            });
+            await(() -> hosted[0].findViewById(R.id.widget_toggle) != null, 3000, "Host did not inflate widget");
+            await(() -> ((android.widget.TextView) hosted[0].findViewById(R.id.widget_status)).getText().toString().contains("꺼져"),
+                    3000, "Host did not receive initial widget state");
+            runOnMainSync(() -> hosted[0].findViewById(R.id.widget_toggle).performClick());
+            await(store::enabled, 3000, "Hosted widget did not enable alarm");
+            await(() -> ((android.widget.TextView) hosted[0].findViewById(R.id.widget_toggle)).getText().toString().equals("끄기"),
+                    3000, "Hosted widget did not update");
+            SystemClock.sleep(500);
+            java.io.File image = new java.io.File(context.getExternalFilesDir(null), "widget-preview.png");
+            try (java.io.FileOutputStream output = new java.io.FileOutputStream(image)) {
+                android.graphics.Bitmap screenshot = getUiAutomation().takeScreenshot();
+                screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output);
+                screenshot.recycle();
+            }
+            runOnMainSync(() -> hosted[0].findViewById(R.id.widget_toggle).performClick());
+            await(() -> !store.enabled(), 3000, "Hosted widget did not disable alarm");
+        } finally {
+            runOnMainSync(host::stopListening);
+            host.deleteAppWidgetId(id);
+            runOnMainSync(screen::finish);
+        }
     }
 
     private void configure(View view, int hour, int minute) {

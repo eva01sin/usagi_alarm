@@ -179,6 +179,7 @@ public final class MainActivity extends Activity {
         for (int i = 0; i < 7; i++) if (days[i].isChecked()) mask |= 1 << i;
         if (store.enabled() && scheduler.permitted()) scheduler.save(h, value(minute), mask, value(lead));
         else store.prefs.edit().putInt("hour", h).putInt("minute", value(minute)).putInt("days", mask).putInt("lead", value(lead)).apply();
+        AlarmWidget.updateAll(this);
         dirty = false; refreshStatus();
     }
     private void setEnabled(boolean checked) { updating = true; enabled.setChecked(checked); updating = false; }
@@ -214,9 +215,10 @@ public final class MainActivity extends Activity {
         if (allowed) continueEnable(); else { pendingEnable = false; setEnabled(false); }
     }
     private void refreshStatus() {
-        if (!pendingEnable) setEnabled(store.enabled());
+        if (!pendingEnable) setEnabled(store.enabled() || store.snoozeTarget() > 0);
         status.setText(pendingEnable ? "알림 권한을 확인하고 있어요" : dirty ? "입력을 마치면 자동 저장돼요"
-                : !store.error().isEmpty() && store.enabled() ? store.error()
+                : !store.error().isEmpty() && (store.enabled() || store.snoozeTarget() > 0) ? store.error()
+                : store.snoozeTarget() > 0 ? "다시 알림 · " + DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(store.snoozeTarget()))
                 : store.enabled() ? "다음 알림 · " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(store.target()))
                 : "알림이 꺼져 있어요 · 설정은 자동 저장돼요");
     }
@@ -229,7 +231,7 @@ public final class MainActivity extends Activity {
         updating = false;
     }
     @Override protected void onResume() {
-        super.onResume(); if (store.target() > System.currentTimeMillis()) scheduler.restore(false);
+        super.onResume(); if (store.target() > System.currentTimeMillis() || store.snoozeTarget() > 0) scheduler.restore(false);
         handler.removeCallbacks(refresh); handler.post(refresh);
     }
     @Override protected void onPause() { handler.removeCallbacks(refresh); handler.removeCallbacks(saveDraft); save(false); super.onPause(); }

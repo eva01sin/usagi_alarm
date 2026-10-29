@@ -1,5 +1,15 @@
 # 기능 검증 결과
 
+## 다시 알림 및 홈 화면 위젯 · 2026-10-30
+
+- `assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 성공. 단위 테스트 16개 통과, lint 오류 0개·기존 항목 경고 4개.
+- Android 15 에뮬레이터 통합 시나리오 12개 통과: 기존 9개, 사전 알림 중 다시 알림, 단발 본 알람의 다시 알림, 위젯 상태 및 켜기·끄기.
+- 다시 알림은 실제 AlarmManager에 현재 시각에서 5분 후로 등록되는지 검사했습니다. 전달·재생 검증 단계에서만 예약을 2초 후로 앞당겼으며, 실제 5분 대기 검증은 하지 않았습니다.
+- 다시 알림 복원, 반복 예약 유지, 사전 알림 없는 재생, 연속 다시 알림, 전체 끄기 시 취소를 검증했습니다.
+- 최종 APK에서 artwork 시나리오를 재실행해 버튼 숨김·터치 표시·가운데 하단 배치·본 알람 전환 후 유지·종료를 확인했습니다.
+- 별도 widgetHost 시나리오 통과: 실제 Android AppWidgetHost에 위젯을 바인딩하여 표시·버튼 동작·상태 갱신을 확인했습니다. 캡처 `C:/repository/usagi-widget-preview.png`를 시각 확인했습니다. 테스트용 바인딩 허용은 검증 후 해제했습니다.
+- 검증용 APK: `C:/repository/usagi_alarm-snooze-widget-debug.apk`. apksigner 서명 검증 통과. 실제 휴대폰과 제조사별 홈 런처 검증은 남아 있습니다.
+
 검증일: 2026-10-27 (Asia/Seoul)
 
 ## 환경
