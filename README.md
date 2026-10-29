@@ -1,13 +1,24 @@
 # 우사기 알람
 <img width="144" height="312" alt="KakaoTalk_20261028_101825647" src="https://github.com/user-attachments/assets/06d465c5-14f3-4864-a922-7899e4160b92" />
 
-[**APK 다운로드 · usagi_alarm_v1.apk (v1.0.0)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.0.0/usagi_alarm_v1.apk)
+[**APK 다운로드 · usagi_alarm_v1.1.apk (v1.1)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.1/usagi_alarm_v1.1.apk)
 
 Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입니다. 서버·회원가입·복용 기록은 없습니다.
 
 이 앱은 수익 창출을 하지 않는 비영리 개인 프로젝트입니다. 광고, 유료 판매, 인앱 결제를 통한 수익을 얻지 않습니다.
 
 변조하지마시고 자유로이 사용해주세요. 다만 출처는 남겨 주시기 바랍니다.
+
+## 업데이트 내역
+
+### v1.1 · 2026-10-30
+
+- 알람 화면에서 뒤로가기·홈·최근 앱 버튼으로 나가면 현재 알람이 꺼집니다.
+- 사전 알림 중 종료하면 이번 본 알람도 건너뛰며, 다음 반복 예약은 유지됩니다.
+- 앱 버전과 화면 하단 버전 표기를 1.1로 업데이트했습니다.
+- Android 15 에뮬레이터에서 뒤로가기·홈 버튼의 사전 알림 및 본 알람 종료를 검증했습니다.
+
+## 이미지 출처
 
 - 우사기 얼굴 원본: [치이카와 마켓 공식 우사기 컬렉션](https://chiikawamarket.jp/collections/usagi)
 - 이미지 URL: https://chiikawamarket.jp/cdn/shop/collections/03usagi.png?v=1766471469
