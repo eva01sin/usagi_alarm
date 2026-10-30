@@ -1,7 +1,7 @@
 # 우사기 알람
 <img width="144" height="312" alt="KakaoTalk_20261028_101825647" src="https://github.com/user-attachments/assets/06d465c5-14f3-4864-a922-7899e4160b92" />
 
-[**APK 다운로드 · usagi_alarm_v1.2.0.apk (v1.2.0)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.2.0/usagi_alarm_v1.2.0.apk)
+[**APK 다운로드 · usagi_alarm_v1.2.5.apk (v1.2.5)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.2.5/usagi_alarm_v1.2.5.apk)
 
 Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입니다. 서버·회원가입·복용 기록은 없습니다.
 
@@ -13,11 +13,10 @@ Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입�
 
 ### v1.2.5 · 2026-10-30
 
-- 홈 화면 위젯을 3×1 크기의 우사기 알람시계 디자인으로 변경했습니다.
-- AM/PM과 디지털 숫자로 알람 시각을 표시하고, 얼굴 버튼으로 켜고 끕니다.
-- 켜짐 상태에서는 우사기가 아래쪽 중앙을 기준으로 왼쪽 15° → 정면 → 오른쪽 15° → 정면으로 1초마다 움직입니다.
-- 꺼짐 상태에서는 모몽가가 멈춰 있고 액정만 어두워집니다. 주황색 시계 테두리는 유지됩니다.
-- 기존 위젯을 삭제한 뒤 다시 추가하면 3×1 크기가 적용됩니다.
+- 3×1 홈 화면 위젯을 추가했습니다. 디지털 시각을 확인하고 우사기·모몽가 얼굴 버튼으로 알람을 켜고 끌 수 있습니다.
+- 홈 화면을 길게 눌러 위젯 목록에서 추가하세요. 기존 위젯은 삭제 후 다시 추가하면 새 크기가 적용됩니다.
+
+<img src="docs/widget-v1.2.5.png" width="300" alt="우사기 알람 3×1 홈 화면 위젯" />
 
 ### v1.2.0 · 2026-10-30
 
