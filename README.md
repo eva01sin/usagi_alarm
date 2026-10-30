@@ -1,7 +1,7 @@
 # 우사기 알람
 <img width="144" height="312" alt="KakaoTalk_20261028_101825647" src="https://github.com/user-attachments/assets/06d465c5-14f3-4864-a922-7899e4160b92" />
 
-[**APK 다운로드 · usagi_alarm_v1.2.5.apk (v1.2.5)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.2.5/usagi_alarm_v1.2.5.apk)
+[**APK 다운로드 · usagi_alarm_v1.2.6.apk (v1.2.6)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.2.6/usagi_alarm_v1.2.6.apk)
 
 Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입니다. 서버·회원가입·복용 기록은 없습니다.
 
@@ -10,6 +10,10 @@ Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입�
 변조하지마시고 자유로이 사용해주세요. 다만 출처는 남겨 주시기 바랍니다.
 
 ## 업데이트 내역
+
+### v1.2.6 · 2026-10-30
+
+- 위젯 액정의 AM을 왼쪽 위, PM을 왼쪽 아래에 표시하도록 수정했습니다.
 
 ### v1.2.5 · 2026-10-30
 

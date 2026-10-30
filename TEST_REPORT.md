@@ -1,5 +1,13 @@
 # 기능 검증 결과
 
+## v1.2.6 AM/PM 위치 수정 · 2026-10-30
+
+- `assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 성공. 단위 테스트 16개 통과.
+- Android 15에서 widgetPeriod·widget·widgetHost 통합 시나리오 3개 통과.
+- 자정(00시)·오전(08시)·정오(12시)·오후(20시)의 켜짐/꺼짐 8가지 조합에서 실제 숫자 비트맵의 AM/PM 픽셀 위치를 검사했습니다. AM은 위쪽, PM은 아래쪽에 표시됩니다.
+- 위젯 켜기·끄기, 아래쪽 중앙 기준 좌우 15° 회전, 1초 간격 전환 및 모몽가 정지 동작을 재검증했습니다.
+- APK versionName 1.2.6 / versionCode 5 및 기존 버전과 동일한 서명 인증서를 확인했습니다.
+
 ## v1.2.5 위젯 디자인 및 동작 · 2026-10-30
 
 - 3×1 위젯의 AM/PM·디지털 숫자·얼굴 버튼 및 켜짐/꺼짐 액정 색상을 Android 15 홈 런처에서 확인했습니다.

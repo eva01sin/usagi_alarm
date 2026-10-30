@@ -85,7 +85,8 @@ public final class AlarmWidget extends AppWidgetProvider {
         android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888);
         android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
         float baseline = 4 - top;
-        canvas.drawText(label, 4, baseline, period);
+        float labelBaseline = label.equals("AM") ? 4 - labelBounds.top : height - 4 - labelBounds.bottom;
+        canvas.drawText(label, 4, labelBaseline, period);
         canvas.drawText(numbers, 4 + labelWidth + gap, baseline, digits);
         return bitmap;
     }

@@ -62,6 +62,7 @@ public final class AlarmInstrumentation extends Instrumentation {
                 run("snoozeMain", () -> snooze(false));
             }
             if (selected.equals("all") || selected.equals("widget")) run("widget", this::widget);
+            if (selected.equals("all") || selected.equals("widgetPeriod")) run("widgetPeriod", this::widgetPeriod);
             if (selected.equals("widgetHost")) run("widgetHost", this::widgetHost);
             result.putString("stream", "\nPASS: " + passed + " Android integration scenarios\n");
         } catch (Throwable error) {
@@ -414,6 +415,38 @@ public final class AlarmInstrumentation extends Instrumentation {
         });
         await(() -> !store.enabled() && store.snoozeTarget() == 0, 3000, "Widget did not cancel all reservations");
         runOnMainSync(() -> screen.finish());
+    }
+
+    private void widgetPeriod() {
+        runOnMainSync(() -> {
+            for (boolean enabled : new boolean[] {false, true}) {
+                for (int hour : new int[] {0, 8, 12, 20}) {
+                    long target = ZonedDateTime.now().withHour(hour).withMinute(5).toInstant().toEpochMilli();
+                    store.prefs.edit().putInt("hour", hour).putInt("minute", 5)
+                            .putBoolean("enabled", enabled).putLong("target", target).commit();
+                    View widget = AlarmWidget.views(context).apply(context, new android.widget.FrameLayout(context));
+                    android.widget.ImageView display = widget.findViewById(R.id.widget_status);
+                    android.graphics.Bitmap bitmap = ((android.graphics.drawable.BitmapDrawable) display.getDrawable()).getBitmap();
+                    long totalY = 0;
+                    int pixels = 0;
+                    // Inspect the actual AM/PM pixels to the left of the time digits.
+                    for (int y = 0; y < bitmap.getHeight(); y++) {
+                        for (int x = 0; x < 45; x++) {
+                            if (android.graphics.Color.alpha(bitmap.getPixel(x, y)) > 128) {
+                                totalY += y;
+                                pixels++;
+                            }
+                        }
+                    }
+                    check(pixels > 0, "AM/PM label is missing");
+                    float center = totalY / (float) pixels / bitmap.getHeight();
+                    check(hour < 12 ? center < 0.35f : center > 0.65f,
+                            "AM must be at top and PM at bottom: hour=" + hour + ", enabled=" + enabled);
+                    check(display.getContentDescription().toString().startsWith(hour < 12 ? "AM" : "PM"),
+                            "Incorrect period at midnight or noon");
+                }
+            }
+        });
     }
 
     private void widgetHost() throws Exception {

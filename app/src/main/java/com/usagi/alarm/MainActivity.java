@@ -114,7 +114,7 @@ public final class MainActivity extends Activity {
         FrameLayout.LayoutParams scrollBounds = new FrameLayout.LayoutParams(-1, -1);
         scrollBounds.bottomMargin = dp(52);
         root.addView(scroll, scrollBounds);
-        TextView footer = text("ver.1.2.5\neva01sin@naver.com", 10);
+        TextView footer = text("ver.1.2.6\neva01sin@naver.com", 10);
         footer.setGravity(Gravity.CENTER);
         footer.setPadding(dp(10), dp(4), dp(10), dp(4));
         footer.setBackground(shape(0xE6FFFAF0, 8));
