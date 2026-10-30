@@ -1,7 +1,7 @@
 # 우사기 알람
 <img width="144" height="312" alt="KakaoTalk_20261028_101825647" src="https://github.com/user-attachments/assets/06d465c5-14f3-4864-a922-7899e4160b92" />
 
-[**APK 다운로드 · usagi_alarm_v1.1.apk (v1.1)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.1/usagi_alarm_v1.1.apk)
+[**APK 다운로드 · usagi_alarm_v1.2.0.apk (v1.2.0)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.2.0/usagi_alarm_v1.2.0.apk)
 
 Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입니다. 서버·회원가입·복용 기록은 없습니다.
 
@@ -11,7 +11,7 @@ Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입�
 
 ## 업데이트 내역
 
-### 개발 중 · 다시 알림과 홈 화면 위젯
+### v1.2.0 · 2026-10-30
 
 - 알람 화면을 터치하면 `5분만...`과 `알람 끄기` 버튼이 나타납니다.
 - `5분만...`을 누르면 5분 후 사전 알림 없이 본 알람으로 다시 울립니다. 다음 요일 반복 예약은 유지됩니다.

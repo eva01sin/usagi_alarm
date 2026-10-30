@@ -2,6 +2,8 @@
 
 ## 다시 알림 및 홈 화면 위젯 · 2026-10-30
 
+- v1.2.0 배포 APK는 versionCode 3 / versionName 1.2.0을 확인했고, v1.1 배포 APK와 서명 인증서 SHA-256이 동일합니다. 에뮬레이터 덮어쓰기 설치 및 다시 알림 시나리오 2개를 재검증했습니다.
+
 - `assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 성공. 단위 테스트 16개 통과, lint 오류 0개·기존 항목 경고 4개.
 - Android 15 에뮬레이터 통합 시나리오 12개 통과: 기존 9개, 사전 알림 중 다시 알림, 단발 본 알람의 다시 알림, 위젯 상태 및 켜기·끄기.
 - 다시 알림은 실제 AlarmManager에 현재 시각에서 5분 후로 등록되는지 검사했습니다. 전달·재생 검증 단계에서만 예약을 2초 후로 앞당겼으며, 실제 5분 대기 검증은 하지 않았습니다.
