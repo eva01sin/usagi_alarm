@@ -1,0 +1,3 @@
+<rotate xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/usagi_icon" android:fromDegrees="-15" android:toDegrees="-15"
+    android:pivotX="50%" android:pivotY="100%" />

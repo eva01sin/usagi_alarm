@@ -389,19 +389,26 @@ public final class AlarmInstrumentation extends Instrumentation {
         Activity screen = open(MainActivity.class);
         final View[] widget = new View[1];
         runOnMainSync(() -> {
+            store.prefs.edit().putInt("hour", 20).putInt("minute", 5).commit();
             widget[0] = AlarmWidget.views(context).apply(context, new android.widget.FrameLayout(context));
-            check(((android.widget.TextView) widget[0].findViewById(R.id.widget_status)).getText().toString().contains("꺼져"),
+            check(widget[0].findViewById(R.id.widget_status).getContentDescription().toString().startsWith("PM 08:05"),
+                    "Widget must show the configured time with AM/PM");
+            check(widget[0].findViewById(R.id.widget_status).getContentDescription().toString().contains("꺼져"),
                     "Widget disabled status missing");
+            check(widget[0].findViewById(R.id.widget_toggle).getContentDescription().toString().startsWith("모몽가"),
+                    "Disabled widget must show Momonga");
             widget[0].findViewById(R.id.widget_toggle).performClick();
         });
         await(store::enabled, 3000, "Widget did not enable alarm");
         runOnMainSync(() -> {
             widget[0] = AlarmWidget.views(context).apply(context, new android.widget.FrameLayout(context));
-            check(((android.widget.TextView) widget[0].findViewById(R.id.widget_status)).getText().toString().contains("다음 알람"),
+            check(widget[0].findViewById(R.id.widget_status).getContentDescription().toString().contains("다음 알람"),
                     "Widget next alarm missing");
+            check(widget[0].findViewById(R.id.widget_toggle).getContentDescription().toString().startsWith("우사기"),
+                    "Enabled widget must show Usagi");
             check(scheduler.snooze(0), "Widget snooze setup failed");
             widget[0] = AlarmWidget.views(context).apply(context, new android.widget.FrameLayout(context));
-            check(((android.widget.TextView) widget[0].findViewById(R.id.widget_status)).getText().toString().contains("다시 알림"),
+            check(widget[0].findViewById(R.id.widget_status).getContentDescription().toString().contains("다시 알림"),
                     "Widget snooze status missing");
             widget[0].findViewById(R.id.widget_toggle).performClick();
         });
@@ -425,31 +432,57 @@ public final class AlarmInstrumentation extends Instrumentation {
                 hosted[0] = host.createView(screen, id, manager.getAppWidgetInfo(id));
                 int density = (int) (screen.getResources().getDisplayMetrics().density * 100);
                 android.widget.FrameLayout.LayoutParams bounds = new android.widget.FrameLayout.LayoutParams(
-                        density * 350 / 100, density * 140 / 100, android.view.Gravity.CENTER);
+                        density * 210 / 100, density * 64 / 100, android.view.Gravity.CENTER);
                 frame.addView(hosted[0], bounds);
                 screen.setContentView(frame);
                 AlarmWidget.updateAll(context);
             });
             await(() -> hosted[0].findViewById(R.id.widget_toggle) != null, 3000, "Host did not inflate widget");
-            await(() -> ((android.widget.TextView) hosted[0].findViewById(R.id.widget_status)).getText().toString().contains("꺼져"),
+            await(() -> hosted[0].findViewById(R.id.widget_status).getContentDescription() != null
+                    && hosted[0].findViewById(R.id.widget_status).getContentDescription().toString().contains("꺼져"),
                     3000, "Host did not receive initial widget state");
+            SystemClock.sleep(500);
+            captureWidget("widget-off-preview.png");
             runOnMainSync(() -> hosted[0].findViewById(R.id.widget_toggle).performClick());
             await(store::enabled, 3000, "Hosted widget did not enable alarm");
-            await(() -> ((android.widget.TextView) hosted[0].findViewById(R.id.widget_toggle)).getText().toString().equals("끄기"),
+            await(() -> hosted[0].findViewById(R.id.widget_toggle).getContentDescription().toString().equals("우사기 · 알람 끄기"),
                     3000, "Hosted widget did not update");
-            SystemClock.sleep(500);
-            java.io.File image = new java.io.File(context.getExternalFilesDir(null), "widget-preview.png");
-            try (java.io.FileOutputStream output = new java.io.FileOutputStream(image)) {
-                android.graphics.Bitmap screenshot = getUiAutomation().takeScreenshot();
-                screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output);
-                screenshot.recycle();
+            android.widget.ViewFlipper motion = hosted[0].findViewById(R.id.widget_motion);
+            check(motion != null && motion.getFlipInterval() == 1000, "Usagi must move every second");
+            check(motion.getChildCount() == 4, "Rotation must contain four poses");
+            float[] angles = {-15, 0, 15, 0};
+            for (int pose = 0; pose < angles.length; pose++) {
+                android.graphics.drawable.Drawable face = ((android.widget.ImageView) motion.getChildAt(pose)).getDrawable();
+                if (angles[pose] != 0) {
+                    check(face instanceof android.graphics.drawable.RotateDrawable, "Tilt drawable missing");
+                    android.graphics.drawable.RotateDrawable tilt = (android.graphics.drawable.RotateDrawable) face;
+                    check(tilt.getFromDegrees() == angles[pose] && tilt.getToDegrees() == angles[pose], "Incorrect Usagi tilt");
+                    check(tilt.getPivotX() == 0.5f && tilt.getPivotY() == 1f, "Tilt must pivot at bottom center");
+                } else check(!(face instanceof android.graphics.drawable.RotateDrawable), "Front pose must be upright");
             }
+            int firstFrame = motion.getDisplayedChild();
+            for (int step = 1; step <= 4; step++) {
+                int expected = (firstFrame + step) % 4;
+                await(() -> motion.getDisplayedChild() == expected, 1500, "Usagi did not advance to the next pose");
+            }
+            SystemClock.sleep(500);
+            captureWidget("widget-preview.png");
             runOnMainSync(() -> hosted[0].findViewById(R.id.widget_toggle).performClick());
             await(() -> !store.enabled(), 3000, "Hosted widget did not disable alarm");
+            await(() -> hosted[0].findViewById(R.id.widget_motion) == null, 3000, "Momonga must remain still");
         } finally {
             runOnMainSync(host::stopListening);
             host.deleteAppWidgetId(id);
             runOnMainSync(screen::finish);
+        }
+    }
+
+    private void captureWidget(String name) throws java.io.IOException {
+        java.io.File image = new java.io.File(context.getExternalFilesDir(null), name);
+        try (java.io.FileOutputStream output = new java.io.FileOutputStream(image)) {
+            android.graphics.Bitmap screenshot = getUiAutomation().takeScreenshot();
+            screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output);
+            screenshot.recycle();
         }
     }
 

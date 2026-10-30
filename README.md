@@ -11,6 +11,14 @@ Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입�
 
 ## 업데이트 내역
 
+### v1.2.5 · 2026-10-30
+
+- 홈 화면 위젯을 3×1 크기의 우사기 알람시계 디자인으로 변경했습니다.
+- AM/PM과 디지털 숫자로 알람 시각을 표시하고, 얼굴 버튼으로 켜고 끕니다.
+- 켜짐 상태에서는 우사기가 아래쪽 중앙을 기준으로 왼쪽 15° → 정면 → 오른쪽 15° → 정면으로 1초마다 움직입니다.
+- 꺼짐 상태에서는 모몽가가 멈춰 있고 액정만 어두워집니다. 주황색 시계 테두리는 유지됩니다.
+- 기존 위젯을 삭제한 뒤 다시 추가하면 3×1 크기가 적용됩니다.
+
 ### v1.2.0 · 2026-10-30
 
 - 알람 화면을 터치하면 `5분만...`과 `알람 끄기` 버튼이 나타납니다.
@@ -27,7 +35,11 @@ Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입�
 
 ## 이미지 출처
 
+- 위젯 디지털 숫자 서체: [DSEG7 Classic · keshikan](https://www.keshikan.net/fonts-e.html), SIL Open Font License 1.1. 라이선스는 APK의 `assets/DSEG-LICENSE.txt`에 포함되어 있습니다.
+
 - 우사기 얼굴 원본: [치이카와 마켓 공식 우사기 컬렉션](https://chiikawamarket.jp/collections/usagi)
 - 이미지 URL: https://chiikawamarket.jp/cdn/shop/collections/03usagi.png?v=1766471469
+- 위젯 꺼짐 상태의 모몽가 얼굴 원본: [치이카와 마켓 공식 모몽가 컬렉션](https://chiikawamarket.jp/collections/momonga)
+- 이미지 URL: https://chiikawamarket.jp/cdn/shop/collections/04momonga.png?v=1766471446
 
 
