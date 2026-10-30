@@ -1,5 +1,13 @@
 # 기능 검증 결과
 
+## v1.2.7 현재 시각 위젯 · 2026-10-31
+
+- 대상: 버전 1.2.7(versionCode 6), 에뮬레이터 Usagi_API_35(API 35, 정확한 알람 허용 상태). 실제 휴대폰은 검증하지 않았습니다.
+- `assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 성공. 단위 테스트 16개 통과.
+- Android 통합 시나리오 `all` 13개 통과(settings, sequence, noLead, cancel, repeat, preDismiss, artwork, backDismiss, homeDismiss, snoozePre, snoozeMain, widget, widgetPeriod). 별도 `widgetHost` 시나리오도 통과: 콜론 깜박임과 알람이 꺼진 상태의 분 단위 시각 갱신 확인.
+- APK 서명 인증서가 v1.2.6과 같아 기존 설치본 위에 업데이트됩니다.
+- 미검증: 실제 휴대폰의 절전·배터리 최적화에서의 갱신 시점, 정확한 알람 권한이 없는 기기의 갱신 지연.
+
 ## 현재 시각 위젯 및 다시 알림 홈 이동 · 2026-10-31
 
 - 다시 알림의 사전·본 알람 시나리오 2개에서 5분 예약과 반복 예약 유지, 홈 런처로의 이동을 검증했습니다.
