@@ -23,7 +23,6 @@ import android.util.Log;
 import java.util.Random;
 
 public final class AlarmService extends Service {
-    static final String SNOOZE = "com.usagi.alarm.SNOOZE_PLAYBACK";
     static final String STOP = "com.usagi.alarm.STOP";
     static final String SCREEN_VISIBLE = "com.usagi.alarm.SCREEN_VISIBLE";
     static final String CHANNEL = "alarm_playback";
@@ -64,12 +63,6 @@ public final class AlarmService extends Service {
     // The user explicitly ends playback; the wake lock is released in onDestroy.
     @SuppressLint("WakelockTimeout")
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && SNOOZE.equals(intent.getAction())) {
-            if (running && new AlarmScheduler(this).snooze(target)) stopSelf();
-            else if (!running) stopSelf();
-            else android.widget.Toast.makeText(this, new AlarmStore(this).error(), android.widget.Toast.LENGTH_LONG).show();
-            return START_NOT_STICKY;
-        }
         if (intent == null || STOP.equals(intent.getAction())) {
             if (intent != null && running) {
                 AlarmStore store = new AlarmStore(this);

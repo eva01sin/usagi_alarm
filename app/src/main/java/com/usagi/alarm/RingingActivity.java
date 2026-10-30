@@ -24,6 +24,7 @@ public final class RingingActivity extends Activity {
     private UsagiClockView clock;
     private Button stop;
     private View controls;
+    private boolean snoozing;
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
             if (!AlarmService.active) { finish(); return; }
@@ -87,8 +88,7 @@ public final class RingingActivity extends Activity {
         snooze.setTextSize(18);
         snooze.setBackground(stop.getBackground().getConstantState().newDrawable().mutate());
         snooze.setElevation(6 * density);
-        snooze.setOnClickListener(view ->
-                startService(new Intent(this, AlarmService.class).setAction(AlarmService.SNOOZE)));
+        snooze.setOnClickListener(view -> snoozeAlarm());
         android.widget.LinearLayout.LayoutParams snoozeBounds = new android.widget.LinearLayout.LayoutParams((int) (150 * density), -1);
         snoozeBounds.rightMargin = (int) (8 * density);
         row.addView(snooze, snoozeBounds);
@@ -103,6 +103,19 @@ public final class RingingActivity extends Activity {
         finish();
     }
 
+    private void snoozeAlarm() {
+        if (!AlarmService.active) return;
+        if (!new AlarmScheduler(this).snooze(AlarmService.activeTarget)) {
+            android.widget.Toast.makeText(this, new AlarmStore(this).error(), android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        snoozing = true;
+        stopService(new Intent(this, AlarmService.class));
+        startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        finish();
+    }
+
     @SuppressWarnings("deprecation")
     @Override public void onBackPressed() {
         stopAlarm();
@@ -110,7 +123,7 @@ public final class RingingActivity extends Activity {
 
     @Override protected void onUserLeaveHint() {
         super.onUserLeaveHint();
-        stopAlarm();
+        if (!snoozing) stopAlarm();
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {

@@ -363,6 +363,7 @@ public final class AlarmInstrumentation extends Instrumentation {
         Activity screen = open(RingingActivity.class);
         click(screen, "5분만...");
         await(() -> !AlarmService.active && store.snoozeTarget() > 0, 3000, "Snooze did not stop playback");
+        await(this::homeVisible, 6000, "Snooze must return to the home screen");
         long retry = store.snoozeTarget();
         check(Math.abs(retry - System.currentTimeMillis() - 300_000L) < 3000, "Snooze must be five minutes");
         check(pre ? store.enabled() && store.target() > occurrence : !store.enabled(), "Repeat state changed");
@@ -382,8 +383,31 @@ public final class AlarmInstrumentation extends Instrumentation {
         screen = open(RingingActivity.class);
         click(screen, "5분만...");
         await(() -> !AlarmService.active && store.snoozeTarget() > 0, 3000, "Second snooze failed");
+        await(this::homeVisible, 6000, "Second snooze must return to the home screen");
         runOnMainSync(scheduler::disable);
         check(store.snoozeTarget() == 0, "Disable must cancel snooze");
+    }
+
+    private boolean homeVisible() {
+        String resolved = shellOutput("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME").trim();
+        String home = resolved.substring(resolved.lastIndexOf('\n') + 1).trim();
+        for (String line : shellOutput("dumpsys activity activities").split("\n")) {
+            if (line.contains("topResumedActivity=") && line.contains(" " + home + " ")) return true;
+        }
+        return false;
+    }
+
+    private String shellOutput(String command) {
+        try (android.os.ParcelFileDescriptor descriptor = getUiAutomation().executeShellCommand(command);
+             java.io.FileInputStream input = new java.io.FileInputStream(descriptor.getFileDescriptor())) {
+            java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int count;
+            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            return new String(output.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException error) {
+            throw new AssertionError("Could not inspect the active home activity", error);
+        }
     }
 
     private void widget() {
@@ -392,8 +416,9 @@ public final class AlarmInstrumentation extends Instrumentation {
         runOnMainSync(() -> {
             store.prefs.edit().putInt("hour", 20).putInt("minute", 5).commit();
             widget[0] = AlarmWidget.views(context).apply(context, new android.widget.FrameLayout(context));
-            check(widget[0].findViewById(R.id.widget_status).getContentDescription().toString().startsWith("PM 08:05"),
-                    "Widget must show the configured time with AM/PM");
+            String current = java.time.LocalTime.now().format(DateTimeFormatter.ofPattern("a hh:mm", Locale.US));
+            check(widget[0].findViewById(R.id.widget_status).getContentDescription().toString().startsWith(current + ", 현재 시각"),
+                    "Widget must show current time instead of the configured alarm time");
             check(widget[0].findViewById(R.id.widget_status).getContentDescription().toString().contains("꺼져"),
                     "Widget disabled status missing");
             check(widget[0].findViewById(R.id.widget_toggle).getContentDescription().toString().startsWith("모몽가"),
@@ -424,9 +449,23 @@ public final class AlarmInstrumentation extends Instrumentation {
                     long target = ZonedDateTime.now().withHour(hour).withMinute(5).toInstant().toEpochMilli();
                     store.prefs.edit().putInt("hour", hour).putInt("minute", 5)
                             .putBoolean("enabled", enabled).putLong("target", target).commit();
-                    View widget = AlarmWidget.views(context).apply(context, new android.widget.FrameLayout(context));
+                    View widget = AlarmWidget.views(context, target).apply(context, new android.widget.FrameLayout(context));
                     android.widget.ImageView display = widget.findViewById(R.id.widget_status);
                     android.graphics.Bitmap bitmap = ((android.graphics.drawable.BitmapDrawable) display.getDrawable()).getBitmap();
+                    android.widget.ImageView blank = widget.findViewById(R.id.widget_status_blank);
+                    android.graphics.Bitmap hidden = ((android.graphics.drawable.BitmapDrawable) blank.getDrawable()).getBitmap();
+                    check(bitmap.getWidth() == hidden.getWidth() && bitmap.getHeight() == hidden.getHeight(), "Blink must preserve clock size");
+                    int changed = 0;
+                    for (int y = 0; y < bitmap.getHeight(); y++) {
+                        for (int x = 0; x < bitmap.getWidth(); x++) {
+                            if (bitmap.getPixel(x, y) != hidden.getPixel(x, y)) {
+                                changed++;
+                                check(x > bitmap.getWidth() * 0.4f && x < bitmap.getWidth() * 0.7f,
+                                        "Blink must not move the digits or AM/PM label");
+                            }
+                        }
+                    }
+                    check(changed > 0, "Colon must disappear in the alternate frame");
                     long totalY = 0;
                     int pixels = 0;
                     // Inspect the actual AM/PM pixels to the left of the time digits.
@@ -476,6 +515,12 @@ public final class AlarmInstrumentation extends Instrumentation {
                     3000, "Host did not receive initial widget state");
             SystemClock.sleep(500);
             captureWidget("widget-off-preview.png");
+            android.widget.ViewFlipper clock = hosted[0].findViewById(R.id.widget_clock);
+            check(clock != null && clock.getChildCount() == 2 && clock.getFlipInterval() == 1000,
+                    "Clock colon must blink every second");
+            int colonFrame = clock.getDisplayedChild();
+            await(() -> clock.getDisplayedChild() != colonFrame, 1500, "Colon did not blink with alarm disabled");
+            await(() -> clock.getDisplayedChild() == colonFrame, 1500, "Colon did not reappear");
             runOnMainSync(() -> hosted[0].findViewById(R.id.widget_toggle).performClick());
             await(store::enabled, 3000, "Hosted widget did not enable alarm");
             await(() -> hosted[0].findViewById(R.id.widget_toggle).getContentDescription().toString().equals("우사기 · 알람 끄기"),
@@ -503,6 +548,10 @@ public final class AlarmInstrumentation extends Instrumentation {
             runOnMainSync(() -> hosted[0].findViewById(R.id.widget_toggle).performClick());
             await(() -> !store.enabled(), 3000, "Hosted widget did not disable alarm");
             await(() -> hosted[0].findViewById(R.id.widget_motion) == null, 3000, "Momonga must remain still");
+            String before = hosted[0].findViewById(R.id.widget_status).getContentDescription().toString().substring(0, 8);
+            long untilNextMinute = 60_000 - System.currentTimeMillis() % 60_000;
+            await(() -> !hosted[0].findViewById(R.id.widget_status).getContentDescription().toString().startsWith(before),
+                    untilNextMinute + 5000, "Clock must advance with the alarm disabled");
         } finally {
             runOnMainSync(host::stopListening);
             host.deleteAppWidgetId(id);

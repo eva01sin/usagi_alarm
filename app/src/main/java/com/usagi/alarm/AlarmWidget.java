@@ -12,9 +12,11 @@ import java.util.Date;
 
 public final class AlarmWidget extends AppWidgetProvider {
     static final String TOGGLE = "com.usagi.alarm.WIDGET_TOGGLE";
+    private static final String CLOCK_TICK = "com.usagi.alarm.WIDGET_CLOCK_TICK";
 
     @Override public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
+        if (CLOCK_TICK.equals(intent.getAction())) { updateAll(context); return; }
         if (!TOGGLE.equals(intent.getAction())) return;
         AlarmStore store = new AlarmStore(context);
         AlarmScheduler scheduler = new AlarmScheduler(context);
@@ -25,15 +27,42 @@ public final class AlarmWidget extends AppWidgetProvider {
 
     @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
         for (int id : ids) manager.updateAppWidget(id, views(context));
+        scheduleClock(context, ids.length > 0);
     }
+
+    @Override public void onDisabled(Context context) { scheduleClock(context, false); }
 
     static void updateAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         int[] ids = manager.getAppWidgetIds(new ComponentName(context, AlarmWidget.class));
         if (ids.length > 0) manager.updateAppWidget(ids, views(context));
+        scheduleClock(context, ids.length > 0);
     }
 
     static RemoteViews views(Context context) {
+        return views(context, System.currentTimeMillis());
+    }
+
+    private static void scheduleClock(Context context, boolean present) {
+        android.app.AlarmManager manager = context.getSystemService(android.app.AlarmManager.class);
+        PendingIntent tick = PendingIntent.getBroadcast(context, 22,
+                new Intent(context, AlarmWidget.class).setAction(CLOCK_TICK),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (!present) { manager.cancel(tick); return; }
+        long nextMinute = (System.currentTimeMillis() / 60_000 + 1) * 60_000;
+        // RTC does not wake a sleeping device merely to redraw the clock.
+        try {
+            if (android.os.Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()) {
+                manager.setExact(android.app.AlarmManager.RTC, nextMinute, tick);
+                return;
+            }
+        } catch (SecurityException ignored) {
+            // Permission may be revoked between checking and scheduling.
+        }
+        manager.set(android.app.AlarmManager.RTC, nextMinute, tick);
+    }
+
+    static RemoteViews views(Context context, long now) {
         AlarmStore store = new AlarmStore(context);
         AlarmScheduler scheduler = new AlarmScheduler(context);
         boolean enabled = store.enabled() || store.snoozeTarget() > 0;
@@ -45,13 +74,15 @@ public final class AlarmWidget extends AppWidgetProvider {
                 + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(next)) : "알람이 꺼져 있어요";
         if (!scheduler.permitted()) status = "눌러서 알람 권한을 확인해 주세요";
         else if (!store.error().isEmpty()) status = store.error();
-        java.time.LocalTime alarmTime = enabled ? java.time.Instant.ofEpochMilli(next)
-                .atZone(java.time.ZoneId.systemDefault()).toLocalTime() : java.time.LocalTime.of(store.hour(), store.minute());
-        String time = alarmTime.format(java.time.format.DateTimeFormatter.ofPattern("a hh:mm", java.util.Locale.US));
-        views.setImageViewBitmap(R.id.widget_status, clockDigits(context, time, enabled));
+        java.time.LocalTime clockTime = java.time.Instant.ofEpochMilli(now)
+                .atZone(java.time.ZoneId.systemDefault()).toLocalTime();
+        String time = clockTime.format(java.time.format.DateTimeFormatter.ofPattern("a hh:mm", java.util.Locale.US));
+        views.setImageViewBitmap(R.id.widget_status, clockDigits(context, time, enabled, true));
+        views.setImageViewBitmap(R.id.widget_status_blank, clockDigits(context, time, enabled, false));
         views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_background);
-        views.setInt(R.id.widget_status, "setBackgroundResource", enabled ? R.drawable.widget_dial : R.drawable.widget_dial_off);
-        views.setContentDescription(R.id.widget_status, time + ", " + status);
+        views.setInt(R.id.widget_clock, "setBackgroundResource", enabled ? R.drawable.widget_dial : R.drawable.widget_dial_off);
+        views.setContentDescription(R.id.widget_status, time + ", 현재 시각, " + status);
+        views.setContentDescription(R.id.widget_clock, time + ", 현재 시각, " + status);
         views.removeAllViews(R.id.widget_toggle);
         views.addView(R.id.widget_toggle, new RemoteViews(context.getPackageName(),
                 enabled ? R.layout.widget_face_on : R.layout.widget_face_off));
@@ -61,12 +92,12 @@ public final class AlarmWidget extends AppWidgetProvider {
         PendingIntent toggle = PendingIntent.getBroadcast(context, 21,
                 new Intent(context, AlarmWidget.class).setAction(TOGGLE),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.widget_status, open);
+        views.setOnClickPendingIntent(R.id.widget_clock, open);
         views.setOnClickPendingIntent(R.id.widget_toggle, enabled || scheduler.permitted() ? toggle : open);
         return views;
     }
 
-    private static android.graphics.Bitmap clockDigits(Context context, String time, boolean enabled) {
+    private static android.graphics.Bitmap clockDigits(Context context, String time, boolean enabled, boolean colonVisible) {
         android.graphics.Paint digits = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
         digits.setTypeface(context.getResources().getFont(R.font.dseg7_regular));
         digits.setTextSize(80);
@@ -87,7 +118,7 @@ public final class AlarmWidget extends AppWidgetProvider {
         float baseline = 4 - top;
         float labelBaseline = label.equals("AM") ? 4 - labelBounds.top : height - 4 - labelBounds.bottom;
         canvas.drawText(label, 4, labelBaseline, period);
-        canvas.drawText(numbers, 4 + labelWidth + gap, baseline, digits);
+        canvas.drawText(colonVisible ? numbers : numbers.replace(':', ' '), 4 + labelWidth + gap, baseline, digits);
         return bitmap;
     }
 }

@@ -1,5 +1,5 @@
 <resources>
     <string name="widget_name">우사기 알람</string>
     <string name="widget_enable">켜기</string>
-    <string name="widget_description">다음 알람을 확인하고 켜거나 끌 수 있어요</string>
+    <string name="widget_description">현재 시각을 확인하고 알람을 켜거나 끌 수 있어요</string>
 </resources>
