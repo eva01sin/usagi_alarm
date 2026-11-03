@@ -18,6 +18,8 @@ public final class AlarmReceiver extends BroadcastReceiver {
         if (!store.enabled() || target != store.target()
                 || intent.getLongExtra("generation", -1) != store.generation()) return;
         if (!AlarmScheduler.PRE.equals(intent.getAction()) && !AlarmScheduler.MAIN.equals(intent.getAction())) return;
+        // 늦게 발표된 임시공휴일까지 반영하도록 울리기 직전에 다시 확인한다(오류 시에는 울린다).
+        if (new AlarmScheduler(context).skipIfHoliday(target)) return;
         start(context, store, target, store.leadSeconds());
         if (AlarmScheduler.MAIN.equals(intent.getAction())) new AlarmScheduler(context).advance();
     }

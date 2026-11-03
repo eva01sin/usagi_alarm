@@ -33,6 +33,11 @@
         <item>일요일 반복</item>
     </string-array>
     <string name="repeat_once_hint">선택하지 않으면 한 번만 울려요</string>
+    <string name="skip_holidays">한국 공휴일엔 알람 울리지 않기</string>
+    <string name="calendar_holidays">캘린더에서도 공휴일 가져오기</string>
+    <string name="calendar_holidays_hint">임시공휴일·선거일을 구글 캘린더 공휴일에서 가져와요. 캘린더 읽기 권한이 필요해요.</string>
+    <string name="calendar_not_found">공휴일 캘린더를 찾지 못했습니다(구글 캘린더 동기화 필요)</string>
+    <string name="calendar_permission_denied">캘린더 공휴일을 쓰려면 캘린더 읽기 권한이 필요해요</string>
     <string name="lead_label">사전 알림</string>
     <string name="lead_description">사전 알림 시간 (초)</string>
     <string name="lead_suffix">"  초 전"</string>

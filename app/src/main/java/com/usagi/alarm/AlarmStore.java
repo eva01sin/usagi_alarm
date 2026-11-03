@@ -20,6 +20,8 @@ final class AlarmStore {
     int minute() { return prefs.getInt("minute", 0); }
     int days() { return prefs.getInt("days", 0); }
     int leadSeconds() { return prefs.getInt("lead", 10); }
+    boolean skipHolidays() { return prefs.getBoolean("skipHolidays", false); }
+    boolean calendarHolidays() { return prefs.getBoolean("calendarHolidays", false); }
     boolean enabled() { return prefs.getBoolean("enabled", false); }
     long target() { return prefs.getLong("target", 0); }
     long snoozeTarget() { return prefs.getLong("snooze", 0); }

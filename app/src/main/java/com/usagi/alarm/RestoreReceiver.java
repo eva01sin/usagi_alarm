@@ -10,6 +10,8 @@ public final class RestoreReceiver extends BroadcastReceiver {
                 || Intent.ACTION_TIMEZONE_CHANGED.equals(intent.getAction());
         if (clockChanged) context.stopService(new Intent(context, AlarmService.class));
         // Boot restores reservations only; it does not launch a playback service.
-        new AlarmScheduler(context).restore(clockChanged);
+        AlarmScheduler scheduler = new AlarmScheduler(context);
+        // 캘린더 공휴일을 쓰는 중이면 부팅 때도 최신 캘린더로 다시 계산한다.
+        scheduler.restore(clockChanged || scheduler.calendarActive());
     }
 }

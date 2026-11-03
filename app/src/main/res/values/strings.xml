@@ -33,6 +33,11 @@
         <item>Repeat on Sunday</item>
     </string-array>
     <string name="repeat_once_hint">If no day is selected, it rings only once</string>
+    <string name="skip_holidays">Don\'t ring on Korean public holidays</string>
+    <string name="calendar_holidays">Also use holidays from calendar</string>
+    <string name="calendar_holidays_hint">Adds temporary holidays and election days from the Google Calendar holidays. Needs permission to read the calendar.</string>
+    <string name="calendar_not_found">Couldn\'t find the holiday calendar (Google Calendar sync needed)</string>
+    <string name="calendar_permission_denied">Calendar permission is needed to use calendar holidays</string>
     <string name="lead_label">Pre-alarm</string>
     <string name="lead_description">Pre-alarm time (seconds)</string>
     <string name="lead_suffix">"  sec before"</string>

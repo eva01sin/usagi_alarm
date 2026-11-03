@@ -22,11 +22,13 @@ import java.util.Locale;
 @SuppressLint("SetTextI18n")
 public final class MainActivity extends Activity {
     private static final int INK = 0xff51382b, ACCENT = 0xffa3442c;
+    private static final int REQUEST_CALENDAR = 5;
     private AlarmStore store;
     private AlarmScheduler scheduler;
     private EditText hour, minute, lead;
     private RadioGroup period;
-    private Switch enabled;
+    private Switch enabled, skipHolidays, calendarHolidays;
+    private TextView calendarNotFound;
     private CheckBox[] days;
     private TextView status;
     private LinearLayout overlayPanel;
@@ -121,7 +123,22 @@ public final class MainActivity extends Activity {
             cell.setMargins(dp(1), 0, dp(1), 0); dayRow.addView(day, cell);
         }
         options.addView(dayRow);
-        TextView once = text(getString(R.string.repeat_once_hint), 12); once.setPadding(0, dp(4), 0, dp(8)); options.addView(once);
+        TextView once = text(getString(R.string.repeat_once_hint), 12); once.setPadding(0, dp(4), 0, dp(4)); options.addView(once);
+        skipHolidays = new Switch(this); skipHolidays.setId(R.id.skip_holidays);
+        skipHolidays.setText(R.string.skip_holidays); skipHolidays.setTextSize(15 * textScale); skipHolidays.setTextColor(INK);
+        skipHolidays.setThumbTintList(new ColorStateList(new int[][] {{android.R.attr.state_checked}, {}}, new int[] {ACCENT, 0xffa99c84}));
+        skipHolidays.setMinHeight(dp(48)); skipHolidays.setChecked(store.skipHolidays());
+        options.addView(skipHolidays, new LinearLayout.LayoutParams(-1, -2));
+        calendarHolidays = new Switch(this); calendarHolidays.setId(R.id.calendar_holidays);
+        calendarHolidays.setText(R.string.calendar_holidays); calendarHolidays.setTextSize(15 * textScale); calendarHolidays.setTextColor(INK);
+        calendarHolidays.setThumbTintList(new ColorStateList(new int[][] {{android.R.attr.state_checked}, {}}, new int[] {ACCENT, 0xffa99c84}));
+        calendarHolidays.setMinHeight(dp(48)); calendarHolidays.setChecked(store.calendarHolidays() && AndroidHolidayCalendar.permitted(this));
+        options.addView(calendarHolidays, new LinearLayout.LayoutParams(-1, -2));
+        TextView calendarHint = text(getString(R.string.calendar_holidays_hint), 12); calendarHint.setId(R.id.calendar_holidays_hint);
+        options.addView(calendarHint);
+        calendarNotFound = text(getString(R.string.calendar_not_found), 12); calendarNotFound.setId(R.id.calendar_not_found);
+        calendarNotFound.setTextColor(ACCENT); calendarNotFound.setVisibility(View.GONE); options.addView(calendarNotFound);
+        updateCalendarSwitch();
         LinearLayout leadRow = new LinearLayout(this); leadRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView label = text(getString(R.string.lead_label), 14); label.setLabelFor(R.id.lead_seconds);
         leadRow.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
@@ -139,7 +156,7 @@ public final class MainActivity extends Activity {
         // 큰 창은 버전 표기를 오른쪽 아래 모서리에 겹쳐 두어(아래 참고) 스크롤 영역이 창 끝까지 쓰이게 한다.
         scrollBounds.bottomMargin = largeWindow ? 0 : dp(52);
         root.addView(scroll, scrollBounds);
-        TextView footer = text("ver.1.3.1\neva01sin@naver.com", 10);
+        TextView footer = text("ver.1.4.0\neva01sin@naver.com", 10);
         footer.setGravity(Gravity.CENTER);
         footer.setPadding(dp(10), dp(4), dp(10), dp(4));
         footer.setBackground(shape(0xE6FFFAF0, 8));
@@ -165,6 +182,27 @@ public final class MainActivity extends Activity {
             if (!checked) { pendingEnable = false; scheduler.disable(); dirty = true; save(false); }
             else if (valid(true)) { pendingEnable = true; fullScreenAsked = false; continueEnable(); }
             else setEnabled(false);
+            refreshStatus();
+        });
+        // 입력 중인 초안을 먼저 저장하고(시간 변경이 새 설정으로 계산되게), 설정을 저장·재예약한다.
+        skipHolidays.setOnCheckedChangeListener((button, checked) -> {
+            if (updating) return;
+            handler.removeCallbacks(saveDraft);
+            save(false);
+            scheduler.setSkipHolidays(checked);
+            updateCalendarSwitch();
+            refreshStatus();
+        });
+        calendarHolidays.setOnCheckedChangeListener((button, checked) -> {
+            if (updating) return;
+            handler.removeCallbacks(saveDraft);
+            save(false);
+            if (checked && !AndroidHolidayCalendar.permitted(this)) {
+                requestPermissions(new String[] {Manifest.permission.READ_CALENDAR}, REQUEST_CALENDAR);
+                return;
+            }
+            scheduler.setCalendarHolidays(checked);
+            updateCalendarSwitch();
             refreshStatus();
         });
         updating = false;
@@ -194,10 +232,18 @@ public final class MainActivity extends Activity {
         LinearLayout columns = new LinearLayout(this);
         columns.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout left = column(), right = column();
-        left.addView(timePanel);
-        LinearLayout.LayoutParams optionsBounds = new LinearLayout.LayoutParams(-1, -2);
-        optionsBounds.topMargin = dp(compactWindow ? 10 : 16);
-        left.addView(options, optionsBounds);
+        if (compactWindow) {
+            // 낮은 큰 창은 옵션이 길어(캘린더 스위치 포함) 왼쪽 열에 다 들어가지 않아, 시간 패널을 오른쪽 열 위로 옮긴다.
+            left.addView(options);
+            LinearLayout.LayoutParams timeBounds = new LinearLayout.LayoutParams(-1, -2);
+            timeBounds.bottomMargin = dp(10);
+            right.addView(timePanel, timeBounds);
+        } else {
+            left.addView(timePanel);
+            LinearLayout.LayoutParams optionsBounds = new LinearLayout.LayoutParams(-1, -2);
+            optionsBounds.topMargin = dp(16);
+            left.addView(options, optionsBounds);
+        }
         LinearLayout.LayoutParams overlayBounds = new LinearLayout.LayoutParams(-1, -2);
         overlayBounds.bottomMargin = dp(compactWindow ? 10 : 16);
         right.addView(overlay, overlayBounds);
@@ -333,6 +379,17 @@ public final class MainActivity extends Activity {
     }
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) {
         super.onRequestPermissionsResult(request, permissions, grants);
+        if (request == REQUEST_CALENDAR) {
+            boolean granted = grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED;
+            if (granted) scheduler.setCalendarHolidays(true);
+            else {
+                updating = true; calendarHolidays.setChecked(false); updating = false;
+                Toast.makeText(this, R.string.calendar_permission_denied, Toast.LENGTH_LONG).show();
+            }
+            updateCalendarSwitch();
+            refreshStatus();
+            return;
+        }
         if (request == 1 && grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED) continueEnable();
         else { pendingEnable = false; setEnabled(false); }
     }
@@ -341,6 +398,21 @@ public final class MainActivity extends Activity {
         boolean allowed = request == 4 || (request == 2 && getSystemService(NotificationManager.class).areNotificationsEnabled())
                 || (request == 3 && (Build.VERSION.SDK_INT < 31 || getSystemService(AlarmManager.class).canScheduleExactAlarms()));
         if (allowed) continueEnable(); else { pendingEnable = false; setEnabled(false); }
+    }
+    /**
+     * 캘린더 스위치 상태를 맞춘다. 공휴일 스위치가 꺼져 있으면 흐리게 비활성, 권한이 철회됐으면 꺼 둔다.
+     * 켜져 있는데 공휴일 캘린더가 기기에 없으면 안내 한 줄을 보인다.
+     */
+    private void updateCalendarSwitch() {
+        boolean permitted = AndroidHolidayCalendar.permitted(this);
+        if (store.calendarHolidays() && !permitted) store.prefs.edit().putBoolean("calendarHolidays", false).apply();
+        boolean on = store.calendarHolidays() && permitted;
+        boolean before = updating;
+        updating = true; calendarHolidays.setChecked(on); updating = before;
+        calendarHolidays.setEnabled(skipHolidays.isChecked());
+        calendarHolidays.setAlpha(skipHolidays.isChecked() ? 1f : 0.4f);
+        calendarNotFound.setVisibility(on && skipHolidays.isChecked() && !new AndroidHolidayCalendar(this).hasHolidayCalendar()
+                ? View.VISIBLE : View.GONE);
     }
     private void refreshStatus() {
         if (!pendingEnable) setEnabled(store.enabled() || store.snoozeTarget() > 0);
@@ -359,7 +431,9 @@ public final class MainActivity extends Activity {
         updating = false;
     }
     @Override protected void onResume() {
-        super.onResume(); updateOverlayPanel(); if (store.target() > System.currentTimeMillis() || store.snoozeTarget() > 0) scheduler.restore(false);
+        super.onResume(); updateOverlayPanel(); updateCalendarSwitch();
+        // 캘린더 공휴일을 쓰는 중이면 앱을 열 때마다 최신 캘린더로 다시 계산한다.
+        if (store.target() > System.currentTimeMillis() || store.snoozeTarget() > 0) scheduler.restore(scheduler.calendarActive());
         handler.removeCallbacks(refresh); handler.post(refresh);
     }
     @Override protected void onPause() { handler.removeCallbacks(refresh); handler.removeCallbacks(saveDraft); save(false); super.onPause(); }

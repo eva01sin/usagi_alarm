@@ -1,5 +1,53 @@
 # 기능 검증 결과
 
+## HOL-005 캘린더 공휴일 가져오기 + 선거일 제거 (v1.4.0) · 2026-11-04
+
+- **판정: 개발자 자체 확인 통과(독립 검증 미실시).** 이 작업은 `developer`/`verifier` 서브에이전트를 부르지 못하는 세션에서 구현·확인했으므로 "독립 검증"이 아닙니다. 별도 세션에서 `verifier` 검증이 필요합니다. 대상은 미커밋 변경(HOL-004 구현 포함, 버전 1.4.0 / versionCode 9).
+- 환경: Windows 11, 에뮬레이터 `Usagi_API_35`(API 35, 콜드 부팅 후 실행), 디버그·테스트 APK 설치.
+- 명령·결과
+  - `.\gradlew.bat assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` → BUILD SUCCESSFUL. 단위 **68개 통과**(실패 0, 이전 58개 + 신규 `HolidayPolicyTest` 10개, 선거일 기대값은 "내장 아님"으로 변경). lint 오류 0, 항목 10건(경고, 기존과 같은 종류).
+  - 에뮬레이터 `all` → **14개 통과**(콜드 부팅 직후, pcm 오류 26건).
+  - `calendarHoliday` 통과 2회: 권한 허용 상태, 권한 철회 상태(내장 계산만 사용·빈 결과·알람 유지 확인 후 grant). 시험용 로컬 캘린더(OWNER_ACCOUNT `ko.south_korea#holiday@group.v.calendar.google.com`)에 종일 일정을 넣어 ① 일반 날은 건너뛰지 않음 ② 울리기 직전 재확인(`skipIfHoliday`)이 새로 생긴 공휴일을 건너뛰고 다음 날로 이동 ③ 캘린더를 끄면 내장 계산으로 복귀 ④ 시험 데이터 삭제(`content query`로 캘린더 0건 확인).
+  - `holiday` 통과, `foldSettings` 통과(수정 후), `language` 통과(수정 후), `settings` 통과.
+- 이번에 고친 것
+  - 낮은 큰 창(compact)에서 새 스위치 때문에 왼쪽 열이 길어져 `lead_seconds`가 창 밖으로 나가는 문제(`foldSettings` inner-wide-dense 실패) → compact일 때만 시간 패널을 오른쪽 열 위로 이동.
+  - 시험 수정: `language` 시나리오가 드롭다운 선택 콜백을 즉시 검사하던 것을 대기로 변경, 라디오 시절의 기대 문구(`Follow system settings`)를 드롭다운에 맞게 변경, 두 번째 선택은 앱의 선택 리스너를 직접 호출(레이아웃이 돌지 않을 때 콜백이 안 오는 불안정). 제품 코드 결함이 아니라 시험 쪽 문제로 판단했으나 두 번째 선택이 실제 터치에서도 되는지는 직접 확인하지 못했습니다.
+- 관찰된 불안정(기존 환경 문제): 같은 부팅에서 `all`을 먼저 돌린 뒤 `homeDismiss`("missed pre-alarm window")·`snooze`("Snooze did not stop playback")가 실패했고 pcm 오류가 233건까지 쌓였습니다. 콜드 재부팅 후 `snooze`·`all`은 모두 통과. 울림 경로 변경(AlarmReceiver)과의 관련 증거는 없습니다.
+- 미확인: 독립 검증(verifier), 실제 구글 캘린더 동기화로 만든 공휴일 캘린더(시험은 로컬 캘린더로 대체), 실제 휴대폰·절전·배터리 최적화, 권한 다이얼로그를 사람이 누르는 흐름(시험은 `pm grant`/`pm revoke` 사용), `widgetHost`·`foldWindow`·`overlayLaunch`, 부팅 복원 경로(`RestoreReceiver`)의 캘린더 재계산(코드만), 2027-05-03 대체공휴일(자료 불일치, 월력요항 재확인 필요).
+
+## HOL-004 한국 공휴일엔 알람 울리지 않기 · 2026-11-03 (미커밋 변경 검증)
+
+- **판정: 수정 필요(중요 결함 1건).** 공휴일 목록에서 2026년부터 법정 공휴일이 된 노동절(5/1)과 제헌절(7/17), 그리고 이 두 날의 대체공휴일이 빠져 있습니다. 나머지 날짜(설날·부처님오신날·추석·선거일·기존 대체공휴일)는 웹 자료와 일치합니다. 스케줄링·UI 연결부는 코드 리뷰에서 결함을 찾지 못했습니다. 에뮬레이터 시나리오는 미실행입니다.
+- 환경: Windows 11, 에뮬레이터·adb 미사용, 대상은 미커밋 변경(git status 기준 수정 10개 + 신규 `KoreanHolidays`, `AndroidLunarCalendar`, `KoreanHolidaysTest`). 코드·기존 빌드 산출물이 같은 상태에서 Gradle이 대부분 UP-TO-DATE로 통과했습니다(변경 없는 입력의 캐시 재사용).
+- 명령: `.\gradlew.bat assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` → BUILD SUCCESSFUL. 단위 테스트 **55개 통과**(실패 0, 건너뜀 0; 결과 XML 합계 4+9+5+2+11+6+5+3+10). lint 오류 0, 경고 10건(기존과 같은 종류: AppBundleLocaleChanges, ApplySharedPref, DiscouragedApi, MonochromeLauncherIcon, ObsoleteSdkInt, PluralsCandidate, TypographyEllipsis 2, UnusedAttribute 등; 이번 변경이 새로 만든 것은 확인하지 못함). 로그: 작업 스크래치 `gradle.txt`.
+- 요구사항 1(기본 꺼짐·저장·건너뛰기): 통과(코드). `AlarmStore.skipHolidays` 기본 false, `setSkipHolidays`는 `commit()`. 꺼짐이면 `skipDate()`가 null이라 `AlarmTimes`는 7일 탐색의 기존 경로(기존 5인자 시그니처 유지). 일회성 알람도 `days==0`에서 같은 술어로 이동. 스누즈는 `snooze()`·`scheduleSnooze`가 손대지 않음. 사전 알림은 `target - lead`라 본 알람과 함께 이동하지만 아래 제안 S2 참고.
+- 요구사항 2(호출부): 통과(코드). `AlarmTimes.next` 호출처는 `AlarmScheduler.nextTarget` 하나뿐이고 `save`·`restore`·`advance`가 모두 이를 거칩니다. 위젯·RestoreReceiver·AlarmReceiver·AlarmService는 `save/restore/advance`를 호출해 같은 경로입니다(grep 확인). 알람이 켜져 있으면 `restore(true)`로 재계산·재예약, 꺼져 있으면 저장만. `restore(true)`는 대기 중인 스누즈를 다시 예약만 하고 지우지 않으며, generation을 바꾸지 않고 `schedule()`이 `cancel()` 후 새 target으로 PendingIntent를 갱신합니다. 켜짐+공휴일 target이 남는 경로는 찾지 못했습니다(앱 업데이트 후 오래된 target은 다음 `restore`/`advance`에서 재계산).
+- 요구사항 3(KoreanHolidays): **실패(결함 D1)**. 같은 코드에 설날·추석·부처님오신날 표(2026~2028)를 넣어 JVM에서 만든 목록(스크래치 `chk\com\usagi\alarm\Chk.java`)과 웹 자료를 비교했습니다.
+  - 일치: 2026 설날 2/16~18, 3/2, 5/25, 6/3 선거, 8/17, 추석 9/24~26(대체 없음), 10/5. 2027 설날 2/6~9(2/9 대체), 8/16, 추석 9/14~16(대체 없음), 10/4, 10/11, 12/27. 2028 설날 1/26~28(한국 기준 설날 1/27: 삭이 KST 00:12라 중국과 하루 다름, dangi 달력·Asia/Seoul 설정이 필수인 사례), 4/12 선거, 추석 10/2~4 + 10/5 대체(개천절 겹침), 10/9. 불필요한 추가·누락된 기존 공휴일은 없습니다.
+  - **불일치(누락)**: 노동절 5/1과 제헌절 7/17이 2026년부터 법정 공휴일입니다(공휴일에 관한 법률 개정, 관공서의 공휴일에 관한 규정 개정은 2026-04-28 국무회의 의결, 2026-05-01 시행, 대체공휴일 적용 포함). 코드 결과에 없는 날: 2026 5/1(금), 7/17(금) / 2027 5/1(토), 5/3(월, 대체), 7/17(토), 7/19(월, 대체) / 2028 5/1(월), 7/17(월). 2027 대체공휴일은 7일(2/9, 5/3, 7/19, 8/16, 10/4, 10/11, 12/27)이어야 하나 코드는 5일.
+  - 출처: https://www.mt.co.kr/policy/2026/04/28/2026042808250174216 , https://newsseoul.co.kr/news/view/1065584428110739 , https://mobile.newsis.com/view/NISX20260428_0003608893 , https://www.wikitree.co.kr/articles/1134027 , https://www.hankyung.com/article/2026040625351 (노동절), 2027: https://www.kyeonggi.com/article/20260629580085 , https://www.vegannews.co.kr/news/article.html?no=383903 (월력요항 2027), 2028: https://issue.curationinfo.com/entry/2028-%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD-%EA%B3%B5%ED%9C%B4%EC%9D%BC-%EB%8C%80%EC%B2%B4%ED%9C%B4%EC%9D%BC-%EC%A0%95%EB%B3%B4 . 모두 언론·집계 사이트이고 관보·법령 원문은 직접 열지 못했습니다(미확인: 노동절·제헌절 대체공휴일의 조문 원문).
+  - 테스트 표의 2028 설날 1/27은 한국 기준으로 맞습니다. `KoreanHolidaysTest`는 노동절·제헌절을 확인하지 않아 이 결함을 잡지 못합니다.
+  - `AndroidLunarCalendar`(코드 리뷰, 실행 미확인): `Calendar.getInstance(TimeZone("Asia/Seoul"), ULocale("ko_KR@calendar=dangi"))`, 정오 시각, `IS_LEAP_MONTH != 0`이면 0, `MONTH+1`·`DAY_OF_MONTH` 사용은 ICU API와 맞게 보입니다. 윤달 제외는 명절이 윤달에 없다는 가정과 일치. 동기화 처리도 적절. 실제 기기 ICU 데이터는 `holiday` 시나리오 미실행이라 **런타임 미검증**.
+- 요구사항 4(AlarmTimes): 통과(코드·단위). 술어 사용 시 탐색 40일(offset 0~40), 후보가 `after` 이전이면 건너뛰어 오늘 이미 지난 휴일 시각 경계도 다음 날로 진행. 맞는 날이 없으면 기존과 같은 `IllegalArgumentException("No matching alarm day")`(실제 공휴일 데이터로는 발생 불가, 방어 코드는 없음). 시간대는 `ZoneId` 인자로 `atZone` 변환. 한국은 DST가 없어 영향 없음.
+- 요구사항 5(UI): 통과(코드). 영·한 문구 존재, `Switch` 텍스트가 접근성 라벨 역할을 하고 최소 높이 48dp, id `skip_holidays`가 `ids.xml`과 `foldSettings` 목록에 추가됨. `LinearLayout(-1,-2)`라 긴 문구는 줄바꿈되는 구조이며 compact/large 창에서의 실제 배치는 미확인. 리스너 순서는 초안 저장(`save(false)`) 후 `setSkipHolidays`로 올바름.
+- **결함·제안**
+  - D1 (중요) `KoreanHolidays.java:35-43`(FIXED_HOLIDAYS·FIXED_WITH_SUBSTITUTE)과 `substitutesOf`(약 118행): 노동절 5/1, 제헌절 7/17(및 대체공휴일 규칙) 누락. 재현: 2026-05-01 `isHoliday` → false(기대 true). 노동절·제헌절이 토·일이면 다음 첫 평일이 대체공휴일. 단위 테스트에 두 날과 2027-05-03, 2027-07-19 추가 필요.
+  - S1 (제안) 사용자 문구·README가 "한국 공휴일"이라고 하므로, 선거일(2026·2028)만 고정 목록이고 이후 연도의 선거·임시공휴일은 반영되지 않는다는 한계를 안내하거나 문서화.
+  - S2 (제안) `MainActivity.save(false)`는 입력 초안이 있으면 `scheduler.save`→`disable()`을 거쳐 대기 중 스누즈를 취소합니다. 입력 편집 중 토글을 누를 때만 해당하는 기존 동작이며 토글 단독으로는 스누즈에 영향이 없습니다. 또한 사전 알림 초가 길어 `target-lead`가 공휴일에 걸리는 경우(예: 몇 시간 전)는 사전 알림만 휴일에 울릴 수 있습니다.
+  - S3 (제안) 기기 시간대가 한국이 아닐 때는 로컬 날짜를 한국 날짜로 보고 건너뜁니다(의도한 단순화로 보이나 문서화 권장).
+- **미실행**: `holiday` 시나리오(`all`에도 포함되지 않아 별도 실행 필요), `foldSettings`(새 id 포함 레이아웃 확인), `all`·`widgetHost`, 실제 기기 ICU dangi 날짜(2026-02-17 설날, 2026-09-25 추석, 2026-05-24 부처님오신날), 권한이 없는 새 에뮬레이터에서 `holiday` 시나리오가 알람을 켤 수 있는지, 토글의 화면 배치·접근성(TalkBack) 확인.
+
+### HOL-004 재검증 1회차 (D1 수정 후) · 2026-11-03
+
+- **판정: 통과(조건부).** D1(노동절·제헌절 누락)은 코드와 JVM 실행으로 해결을 확인했습니다. 에뮬레이터 시나리오와 기기 ICU 동작은 여전히 미실행입니다.
+- 코드 리뷰: 5/1·7/17은 `FIXED_HOLIDAYS`·`FIXED_WITH_SUBSTITUTE`에 추가되고 `isInForce`(2026년 이전에는 `HOLIDAYS_FROM_2026`의 두 날을 제외)가 공휴일 판정과 대체공휴일 판정 양쪽에 적용됩니다(2025 이전 연도는 5/1·7/17이 공휴일이 아님을 실행으로 확인). 대체공휴일 배정은 날짜 순 훑기 + `nextFreeWeekday`(기존 공휴일·이미 배정된 대체공휴일 제외)를 그대로 써서 충돌 가능성이 없고, 5/1 토요일 → 5/3, 7/17 토요일 → 7/19가 기존 연쇄 배정과 겹치지 않습니다. 5/5나 부처님오신날과 붙는 경우도 `nextFreeWeekday`가 건너뜁니다.
+- 실행(스크래치 `chk\...\Chk.java`, 2025~2029 출력): 2026 공휴일 = 1/1, 2/16~18, 3/1, 3/2, 5/1, 5/5, 5/24, 5/25, 6/3, 6/6, 7/17, 8/15, 8/17, 9/24~26, 10/3, 10/5, 10/9, 12/25. 2027 대체공휴일은 정확히 7개(2/9, 5/3, 7/19, 8/16, 10/4, 10/11, 12/27). 2028 = 1/1, 1/26~28, 3/1, 4/12, 5/1, 5/2, 5/5, 6/6, 7/17, 8/15, 10/2~5, 10/9, 12/25. 이전에 웹과 맞았던 날짜는 모두 그대로이고 불필요한 추가·누락은 없습니다. 2025 출력에는 5/1·7/17이 없습니다(연도 조건 확인).
+- 2026 대체공휴일 웹 교차 확인: 3/2, 5/25, 8/17, 10/5 4일뿐이며 그 외는 없다는 자료와 일치(추석 9/24~26은 일요일·타 공휴일과 겹치지 않아 대체 없음). 2026 5/1(금)·7/17(금)은 평일이라 대체 없음. 출처: https://jab-guyver.co.kr/6497 , https://refininfo.com/substitute-holiday-rules-guide-2026/ , https://www.wikitree.co.kr/articles/1098048 (검색 요약 기준, 원문 미열람).
+- 2027 노동절·제헌절 대체공휴일: 한 보도는 2027 대체공휴일을 "설 연휴, 노동절, 제헌절, 광복절, 개천절, 한글날, 성탄절 7일"로 정리해 코드와 일치합니다(https://www.vegannews.co.kr/news/article.html?no=383903). 반면 다른 자료는 8회로 적었고, 5/3·7/19를 날짜로 명시한 자료는 찾지 못했습니다. 한 2026 정리글은 노동절을 대체공휴일 예외로 적고 있어 자료가 엇갈립니다(개발자 주석도 노동부는 근로기준법상 대체 불가로 본다고 명시). 월력요항·관보 원문 미확인이므로 **노동절(2027-05-03) 대체 여부는 미확정**이며, 오차가 있어도 영향은 해당 하루의 건너뛰기입니다(제안: 원문 확인 후 확정).
+- 명령: `.\gradlew.bat assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug --rerun-tasks` → BUILD SUCCESSFUL, 71개 태스크 모두 실행(캐시 재사용 아님). 단위 테스트 **58개 통과**(실패 0). lint 오류 0, 이슈 10건(1차와 동일 종류). 로그: 스크래치 `gradle2.txt`.
+- 남은 결함: 없음(D1 해결). 제안 S1~S3은 그대로, 위의 노동절 대체 확정 확인 1건 추가.
+- 미실행(에뮬레이터 필요): `holiday`, `foldSettings`, `all`, `widgetHost`, 기기 ICU dangi 날짜·윤달 동작, 토글 화면 배치·TalkBack.
+
 ## v1.3.1 언어 드롭다운·위젯 여백 · 2026-11-03
 
 - 변경: 언어 선택 UI를 `Spinner` 드롭다운으로 교체(`MainActivity.languagePanel`, id `language_spinner`), 위젯 레이아웃 `paddingStart` 12dp→8dp. 에뮬레이터 시험 `language`·`foldWindow`·`foldSettings`의 언어 관련 확인을 드롭다운 기준으로 수정.

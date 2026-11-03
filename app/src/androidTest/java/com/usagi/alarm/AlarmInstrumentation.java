@@ -69,6 +69,8 @@ public final class AlarmInstrumentation extends Instrumentation {
             if (selected.equals("all") || selected.equals("widget")) run("widget", this::widget);
             if (selected.equals("all") || selected.equals("widgetPeriod")) run("widgetPeriod", this::widgetPeriod);
             if (selected.equals("all") || selected.equals("language")) run("language", this::language);
+            if (selected.equals("holiday")) run("holiday", this::holiday);
+            if (selected.equals("calendarHoliday")) run("calendarHoliday", this::calendarHoliday);
             if (selected.equals("foldWindow")) run("foldWindow", this::foldWindow);
             if (selected.equals("foldSettings")) run("foldSettings", this::foldSettings);
             if (selected.equals("overlayLaunch")) run("overlayLaunch", this::overlayLaunch);
@@ -221,6 +223,162 @@ public final class AlarmInstrumentation extends Instrumentation {
         runOnMainSync(() -> ((Switch) screen.findViewById(R.id.alarm_enabled)).setChecked(false));
         check(!store.enabled() && store.target() == 0, "Disable did not cancel");
     }
+    /** 공휴일 건너뛰기: 기기 ICU 음력 공급원 점검, 토글 저장, 켜진 알람의 다음 시각 재계산. 소리는 나지 않는다. */
+    private void holiday() {
+        AndroidLunarCalendar lunar = new AndroidLunarCalendar();
+        check("dangi".equals(lunar.calendarType()), "Korean lunar calendar unavailable: " + lunar.calendarType());
+        check(lunar.lunarMonthDay(java.time.LocalDate.of(2026, 2, 17)) == KoreanHolidays.LUNAR_NEW_YEAR, "ICU lunar new year 2026");
+        check(lunar.lunarMonthDay(java.time.LocalDate.of(2026, 9, 25)) == KoreanHolidays.CHUSEOK, "ICU Chuseok 2026");
+        check(lunar.lunarMonthDay(java.time.LocalDate.of(2026, 5, 24)) == KoreanHolidays.BUDDHAS_BIRTHDAY, "ICU Buddha's birthday 2026");
+        KoreanHolidays holidays = new KoreanHolidays(lunar);
+        check(holidays.isHoliday(java.time.LocalDate.of(2026, 5, 25)) && !holidays.isHoliday(java.time.LocalDate.of(2026, 5, 26)),
+                "Substitute holiday 2026-05-25 on device");
+
+        Activity screen = open(MainActivity.class);
+        try {
+            check(!store.skipHolidays(), "Skip-holiday option must default to off");
+            // 모든 요일 반복으로 켜 두고, 토글을 켜면 다음 시각이 공휴일이 아닌 날로 유지·재계산되는지 본다.
+            runOnMainSync(() -> {
+                for (int id : new int[] {R.id.weekday_monday, R.id.weekday_tuesday, R.id.weekday_wednesday, R.id.weekday_thursday,
+                        R.id.weekday_friday, R.id.weekday_saturday, R.id.weekday_sunday}) {
+                    ((android.widget.CheckBox) screen.findViewById(id)).setChecked(true);
+                }
+            });
+            SystemClock.sleep(900);
+            runOnMainSync(() -> ((Switch) screen.findViewById(R.id.alarm_enabled)).setChecked(true));
+            check(store.enabled() && store.days() == 127, "Enable with all weekdays failed");
+            runOnMainSync(() -> ((Switch) screen.findViewById(R.id.skip_holidays)).setChecked(true));
+            check(store.skipHolidays(), "Skip-holiday toggle did not persist");
+            check(store.enabled() && store.target() > System.currentTimeMillis(), "Toggle must keep alarm scheduled");
+            java.time.LocalDate day = java.time.Instant.ofEpochMilli(store.target()).atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+            check(!holidays.isHoliday(day), "Target moved onto a holiday: " + day);
+            runOnMainSync(() -> ((Switch) screen.findViewById(R.id.skip_holidays)).setChecked(false));
+            check(!store.skipHolidays() && store.enabled(), "Skip-holiday toggle off did not persist");
+        } finally {
+            runOnMainSync(() -> scheduler.setSkipHolidays(false));
+        }
+    }
+
+    private static final String HOLIDAY_OWNER = "ko.south_korea#holiday@group.v.calendar.google.com";
+    private static final String TEST_ACCOUNT = "usagi.test";
+
+    private String shell(String command) throws Exception {
+        try (java.io.InputStream in = new android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                getUiAutomation().executeShellCommand(command))) {
+            return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+    }
+
+    private android.net.Uri syncAdapter(android.net.Uri uri) {
+        return uri.buildUpon().appendQueryParameter(android.provider.CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+                .appendQueryParameter(android.provider.CalendarContract.Calendars.ACCOUNT_NAME, TEST_ACCOUNT)
+                .appendQueryParameter(android.provider.CalendarContract.Calendars.ACCOUNT_TYPE,
+                        android.provider.CalendarContract.ACCOUNT_TYPE_LOCAL).build();
+    }
+
+    private void deleteTestCalendars() {
+        android.content.ContentResolver resolver = context.getContentResolver();
+        resolver.delete(syncAdapter(android.provider.CalendarContract.Calendars.CONTENT_URI),
+                android.provider.CalendarContract.Calendars.ACCOUNT_NAME + "=?", new String[] {TEST_ACCOUNT});
+    }
+
+    private long insertHolidayCalendar() {
+        android.content.ContentValues values = new android.content.ContentValues();
+        values.put(android.provider.CalendarContract.Calendars.ACCOUNT_NAME, TEST_ACCOUNT);
+        values.put(android.provider.CalendarContract.Calendars.ACCOUNT_TYPE, android.provider.CalendarContract.ACCOUNT_TYPE_LOCAL);
+        values.put(android.provider.CalendarContract.Calendars.NAME, "usagi-test-holidays");
+        values.put(android.provider.CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, "usagi-test-holidays");
+        values.put(android.provider.CalendarContract.Calendars.OWNER_ACCOUNT, HOLIDAY_OWNER);
+        values.put(android.provider.CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
+                android.provider.CalendarContract.Calendars.CAL_ACCESS_OWNER);
+        values.put(android.provider.CalendarContract.Calendars.VISIBLE, 1);
+        values.put(android.provider.CalendarContract.Calendars.SYNC_EVENTS, 1);
+        android.net.Uri created = context.getContentResolver().insert(
+                syncAdapter(android.provider.CalendarContract.Calendars.CONTENT_URI), values);
+        check(created != null, "Could not create test holiday calendar");
+        return android.content.ContentUris.parseId(created);
+    }
+
+    private void insertAllDayEvent(long calendarId, java.time.LocalDate day) {
+        long start = day.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli();
+        android.content.ContentValues values = new android.content.ContentValues();
+        values.put(android.provider.CalendarContract.Events.CALENDAR_ID, calendarId);
+        values.put(android.provider.CalendarContract.Events.TITLE, "usagi test holiday");
+        values.put(android.provider.CalendarContract.Events.DTSTART, start);
+        values.put(android.provider.CalendarContract.Events.DTEND, start + 24 * 3600_000L);
+        values.put(android.provider.CalendarContract.Events.ALL_DAY, 1);
+        values.put(android.provider.CalendarContract.Events.EVENT_TIMEZONE, "UTC");
+        check(context.getContentResolver().insert(syncAdapter(android.provider.CalendarContract.Events.CONTENT_URI), values) != null,
+                "Could not insert all-day holiday event");
+    }
+
+    private java.time.LocalDate targetDay() {
+        return java.time.Instant.ofEpochMilli(store.target()).atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+    }
+
+    /**
+     * 캘린더 공휴일: 시험용 로컬 캘린더(소유 계정이 구글 대한민국 공휴일 형태)에 종일 일정을 넣어, 켜진 알람이 그 날을 건너뛰는지,
+     * 울리기 직전 재확인(skipIfHoliday)이 동작하는지, 캘린더를 끄면 내장 계산으로 돌아오는지 본다. 소리는 나지 않는다.
+     * 권한이 없으면 먼저 내장 계산만 쓰는지 확인한 뒤 `pm grant`한다. 끝나면 시험 데이터를 지운다(권한은 그대로이므로
+     * 필요하면 호스트에서 `pm revoke`; 권한 철회는 프로세스를 끝내므로 계측 안에서는 하지 않는다).
+     */
+    private void calendarHoliday() throws Exception {
+        runOnMainSync(() -> { scheduler.setSkipHolidays(false); scheduler.setCalendarHolidays(false); });
+        store.prefs.edit().putInt("hour", 8).putInt("minute", 0).putInt("days", 127).putInt("lead", 0)
+                .putBoolean("enabled", true).putString("error", "").commit();
+        if (!AndroidHolidayCalendar.permitted(context)) {
+            // 권한이 없을 때: 스위치가 켜져 있어도 캘린더는 쓰이지 않고, 읽기는 빈 결과이며 앱이 죽지 않는다.
+            runOnMainSync(() -> { scheduler.setSkipHolidays(true); scheduler.setCalendarHolidays(true); });
+            check(!scheduler.calendarActive(), "Calendar must be inactive without permission");
+            check(new AndroidHolidayCalendar(context).holidays(java.time.LocalDate.now(), java.time.LocalDate.now().plusDays(30)).isEmpty(),
+                    "Calendar read without permission must be empty");
+            check(store.enabled() && store.target() > System.currentTimeMillis(), "Alarm must stay scheduled without calendar permission");
+            runOnMainSync(() -> { scheduler.setCalendarHolidays(false); scheduler.setSkipHolidays(false); });
+            shell("pm grant " + context.getPackageName() + " android.permission.READ_CALENDAR");
+        }
+        check(AndroidHolidayCalendar.permitted(context), "READ_CALENDAR is not granted");
+        getUiAutomation().adoptShellPermissionIdentity();
+        long calendarId;
+        try {
+            deleteTestCalendars();
+            calendarId = insertHolidayCalendar();
+        } catch (RuntimeException e) {
+            getUiAutomation().dropShellPermissionIdentity();
+            throw e;
+        }
+        try {
+            getUiAutomation().dropShellPermissionIdentity();
+            check(new AndroidHolidayCalendar(context).hasHolidayCalendar(), "Test holiday calendar not found");
+            runOnMainSync(() -> scheduler.setSkipHolidays(true));
+            runOnMainSync(() -> scheduler.setCalendarHolidays(true));
+            check(scheduler.calendarActive(), "Calendar must be active with both switches and permission");
+            long first = store.target();
+            java.time.LocalDate day = targetDay();
+            check(!scheduler.skipIfHoliday(first), "Ordinary day must not be skipped");
+            check(store.target() == first, "Ordinary day changed the target");
+
+            getUiAutomation().adoptShellPermissionIdentity();
+            try { insertAllDayEvent(calendarId, day); } finally { getUiAutomation().dropShellPermissionIdentity(); }
+            java.util.Set<java.time.LocalDate> read = new AndroidHolidayCalendar(context).holidays(day, day.plusDays(1));
+            check(read.contains(day) && read.size() == 1, "All-day event read as " + read + " instead of " + day);
+            // 울리기 직전 재확인: 예약 뒤에 발표된 공휴일을 건너뛴다.
+            check(scheduler.skipIfHoliday(first), "Pre-ring check did not skip the new holiday " + day);
+            check(store.enabled() && store.target() > first, "Skip must move the target forward");
+            check(!targetDay().equals(day) && targetDay().isAfter(day), "Target still on holiday " + day + ": " + targetDay());
+            // 캘린더를 끄면 내장 계산으로 돌아와 원래 날짜가 다시 후보가 된다.
+            runOnMainSync(() -> scheduler.setCalendarHolidays(false));
+            check(targetDay().equals(day), "Calendar off must return to built-in result " + day + ", got " + targetDay());
+        } finally {
+            try {
+                getUiAutomation().adoptShellPermissionIdentity();
+                deleteTestCalendars();
+            } finally {
+                getUiAutomation().dropShellPermissionIdentity();
+                runOnMainSync(() -> { scheduler.setCalendarHolidays(false); scheduler.setSkipHolidays(false); });
+            }
+        }
+    }
+
     private void prepare() {
         Activity screen = open(MainActivity.class);
         ZonedDateTime alarm = ZonedDateTime.now().plusMinutes(2).withSecond(0).withNano(0);
@@ -457,13 +615,14 @@ public final class AlarmInstrumentation extends Instrumentation {
         Activity screen = open(MainActivity.class);
         check(hasText(screen.getWindow().getDecorView(), "알람 시간"), "Korean settings screen expected before the switch");
         runOnMainSync(() -> ((android.widget.Spinner) screen.findViewById(R.id.language_spinner)).setSelection(2));
-        check(LanguagePolicy.ENGLISH.equals(store.language()), "English choice was not stored");
+        // 드롭다운 선택 콜백은 메인 루퍼에서 비동기로 처리되므로 저장될 때까지 기다린다.
+        await(() -> LanguagePolicy.ENGLISH.equals(store.language()), 3000, "English choice was not stored");
         await(screen::isDestroyed, 3000, "Settings screen was not redrawn after the language change");
 
         Activity english = open(MainActivity.class);
         waitForIdleSync();
         View englishRoot = english.getWindow().getDecorView();
-        for (String text : new String[] {"Alarm time", "Turn on alarm", "Repeat on", "Language", "Follow system settings", "Mon"}) {
+        for (String text : new String[] {"Alarm time", "Turn on alarm", "Repeat on", "Language", "English", "Mon"}) {
             check(hasText(englishRoot, text), "English settings text missing: " + text);
         }
         check(((android.widget.Spinner) english.findViewById(R.id.language_spinner)).getSelectedItemPosition() == 2, "English must be selected in the language spinner");
@@ -497,11 +656,18 @@ public final class AlarmInstrumentation extends Instrumentation {
         check(((android.widget.Spinner) restarted.findViewById(R.id.language_spinner)).getSelectedItemPosition() == 2
                 && hasText(restarted.getWindow().getDecorView(), "Alarm time"), "Language choice was lost on reopen");
 
-        runOnMainSync(() -> ((android.widget.Spinner) restarted.findViewById(R.id.language_spinner)).setSelection(1));
+        SystemClock.sleep(500);
+        runOnMainSync(() -> {
+            android.widget.Spinner spinner = (android.widget.Spinner) restarted.findViewById(R.id.language_spinner);
+            spinner.setSelection(1);
+            // 화면이 가려져 레이아웃이 돌지 않으면 선택 콜백이 오지 않으므로, 앱의 선택 리스너를 직접 호출해 같은 경로를 확인한다.
+            if (!LanguagePolicy.KOREAN.equals(store.language())) spinner.getOnItemSelectedListener().onItemSelected(spinner, null, 1, 1);
+        });
+        await(() -> LanguagePolicy.KOREAN.equals(store.language()), 3000, "Korean choice was not stored (language=" + store.language() + ")");
         await(restarted::isDestroyed, 3000, "Settings screen was not redrawn after returning to Korean");
         Activity korean = open(MainActivity.class);
         waitForIdleSync();
-        for (String text : new String[] {"알람 시간", "알림 켜기", "반복 요일", "언어", "시스템 설정 따라가기", "월"}) {
+        for (String text : new String[] {"알람 시간", "알림 켜기", "반복 요일", "언어", "한국어", "월"}) {
             check(hasText(korean.getWindow().getDecorView(), text), "Korean settings text missing: " + text
                     + " (language=" + store.language() + ", locale=" + korean.getResources().getConfiguration().getLocales() + ")");
         }
@@ -634,7 +800,7 @@ public final class AlarmInstrumentation extends Instrumentation {
             View decor = screen.getWindow().getDecorView();
             boolean large = window.mode == WindowLayoutPolicy.Mode.LARGE;
             int[] ids = {R.id.time_period, R.id.time_hour, R.id.time_minute, R.id.alarm_enabled, R.id.weekday_monday, R.id.weekday_sunday,
-                    R.id.lead_seconds, R.id.language_spinner};
+                    R.id.skip_holidays, R.id.calendar_holidays, R.id.lead_seconds, R.id.language_spinner};
             java.util.List<android.graphics.Rect> boxes = new java.util.ArrayList<>();
             for (int id : ids) {
                 View view = screen.findViewById(id);

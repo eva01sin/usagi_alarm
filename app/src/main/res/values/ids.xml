@@ -13,6 +13,10 @@
     <item name="weekday_friday" type="id" />
     <item name="weekday_saturday" type="id" />
     <item name="weekday_sunday" type="id" />
+    <item name="skip_holidays" type="id" />
+    <item name="calendar_holidays" type="id" />
+    <item name="calendar_holidays_hint" type="id" />
+    <item name="calendar_not_found" type="id" />
     <item name="overlay_panel" type="id" />
     <item name="overlay_open_settings" type="id" />
     <item name="language_spinner" type="id" />

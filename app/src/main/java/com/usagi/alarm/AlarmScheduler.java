@@ -8,7 +8,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.function.Predicate;
 
 // Persist the occurrence before handing it to AlarmManager or leaving a receiver.
 @SuppressLint("ApplySharedPref")
@@ -54,9 +57,71 @@ final class AlarmScheduler {
         AlarmWidget.updateAll(context);
     }
 
+    /** 기기 지역과 무관하게 한국 공휴일 기준이다. 음력 달력은 처음 쓸 때 만든다. */
+    private static KoreanHolidays koreanHolidays;
+
+    private static synchronized KoreanHolidays koreanHolidays() {
+        if (koreanHolidays == null) koreanHolidays = new KoreanHolidays(new AndroidLunarCalendar());
+        return koreanHolidays;
+    }
+
+    /** 캘린더 공휴일까지 쓰는 상태인지: 두 스위치가 모두 켜져 있고 캘린더 읽기 권한이 있을 때만 true. */
+    boolean calendarActive() {
+        return store.skipHolidays() && store.calendarHolidays() && AndroidHolidayCalendar.permitted(context);
+    }
+
+    /**
+     * 저장된 '공휴일엔 울리지 않기' 설정에 따라 건너뛸 날짜 조건을 돌려준다(꺼져 있으면 null).
+     * 캘린더는 after 날짜부터 한 번만 읽는다.
+     */
+    private Predicate<LocalDate> skipDate(long after) {
+        if (!store.skipHolidays()) return null;
+        LocalDate from = Instant.ofEpochMilli(after).atZone(ZoneId.systemDefault()).toLocalDate();
+        return new HolidayPolicy(koreanHolidays(), calendarActive() ? new AndroidHolidayCalendar(context) : null, from)::isHoliday;
+    }
+
+    private long nextTarget(int hour, int minute, int days, long after) {
+        return AlarmTimes.next(hour, minute, days, after, ZoneId.systemDefault(), skipDate(after));
+    }
+
+    /**
+     * 울리기 직전 재확인: target 날짜가 지금 기준으로 공휴일이면 울리지 않고 다음 날짜로 옮겨 다시 예약하고 true.
+     * 조회가 실패하거나 지연되면 공휴일이 아닌 것으로 보아 울린다(false). 스누즈에는 쓰지 않는다.
+     */
+    boolean skipIfHoliday(long target) {
+        if (!store.skipHolidays()) return false;
+        try {
+            LocalDate date = Instant.ofEpochMilli(target).atZone(ZoneId.systemDefault()).toLocalDate();
+            if (!skipDate(target).test(date)) return false;
+            long next = nextTarget(store.hour(), store.minute(), store.days(), Math.max(target, System.currentTimeMillis()));
+            store.prefs.edit().putLong("target", next).commit();
+            schedule();
+            return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** 캘린더 가져오기 설정을 저장하고, 알람이 켜져 있으면 새 설정으로 다시 계산해 예약한다. */
+    void setCalendarHolidays(boolean use) {
+        store.prefs.edit().putBoolean("calendarHolidays", use).commit();
+        if (store.enabled()) restore(true);
+        else AlarmWidget.updateAll(context);
+    }
+
+    /**
+     * 공휴일 건너뛰기 설정을 저장한다. 알람이 켜져 있으면 다음 울림 시각을 새 설정으로 다시 계산해 예약하고
+     * 위젯도 갱신한다. 꺼져 있으면 설정만 저장한다. 다시 울리는 스누즈는 영향 없다.
+     */
+    void setSkipHolidays(boolean skip) {
+        store.prefs.edit().putBoolean("skipHolidays", skip).commit();
+        if (store.enabled()) restore(true);
+        else AlarmWidget.updateAll(context);
+    }
+
     void save(int hour, int minute, int days, int lead) {
         disable();
-        long target = AlarmTimes.next(hour, minute, days, System.currentTimeMillis(), ZoneId.systemDefault());
+        long target = nextTarget(hour, minute, days, System.currentTimeMillis());
         store.prefs.edit().putInt("hour", hour).putInt("minute", minute).putInt("days", days)
                 .putInt("lead", lead).putBoolean("enabled", true).putLong("target", target)
                 .putString("error", "").commit();
@@ -70,8 +135,7 @@ final class AlarmScheduler {
         AlarmWidget.updateAll(context);
         if (!store.enabled()) return;
         if (recalculate || store.target() <= System.currentTimeMillis()) {
-            long next = AlarmTimes.next(store.hour(), store.minute(), store.days(),
-                    System.currentTimeMillis(), ZoneId.systemDefault());
+            long next = nextTarget(store.hour(), store.minute(), store.days(), System.currentTimeMillis());
             store.prefs.edit().putLong("target", next).commit();
         }
         schedule();
@@ -109,8 +173,8 @@ final class AlarmScheduler {
             cancel();
             AlarmWidget.updateAll(context);
         } else {
-            long next = AlarmTimes.next(store.hour(), store.minute(), store.days(),
-                    Math.max(store.target(), System.currentTimeMillis()), ZoneId.systemDefault());
+            long next = nextTarget(store.hour(), store.minute(), store.days(),
+                    Math.max(store.target(), System.currentTimeMillis()));
             store.prefs.edit().putLong("target", next).commit();
             schedule();
         }
