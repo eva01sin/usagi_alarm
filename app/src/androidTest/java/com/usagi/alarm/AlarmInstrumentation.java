@@ -456,7 +456,7 @@ public final class AlarmInstrumentation extends Instrumentation {
     private void language() {
         Activity screen = open(MainActivity.class);
         check(hasText(screen.getWindow().getDecorView(), "알람 시간"), "Korean settings screen expected before the switch");
-        runOnMainSync(() -> ((RadioButton) screen.findViewById(R.id.language_english)).setChecked(true));
+        runOnMainSync(() -> ((android.widget.Spinner) screen.findViewById(R.id.language_spinner)).setSelection(2));
         check(LanguagePolicy.ENGLISH.equals(store.language()), "English choice was not stored");
         await(screen::isDestroyed, 3000, "Settings screen was not redrawn after the language change");
 
@@ -466,7 +466,7 @@ public final class AlarmInstrumentation extends Instrumentation {
         for (String text : new String[] {"Alarm time", "Turn on alarm", "Repeat on", "Language", "Follow system settings", "Mon"}) {
             check(hasText(englishRoot, text), "English settings text missing: " + text);
         }
-        check(((RadioButton) english.findViewById(R.id.language_english)).isChecked(), "English radio must be checked");
+        check(((android.widget.Spinner) english.findViewById(R.id.language_spinner)).getSelectedItemPosition() == 2, "English must be selected in the language spinner");
 
         long target = System.currentTimeMillis() + 30000; // 느린 기기에서도 사전 알림 단계가 유지되도록 넉넉히 둔다.
         runOnMainSync(() -> context.startForegroundService(new Intent(context, AlarmService.class)
@@ -494,10 +494,10 @@ public final class AlarmInstrumentation extends Instrumentation {
         Activity restarted = open(MainActivity.class);
         waitForIdleSync();
         check(LanguagePolicy.ENGLISH.equals(new AlarmStore(context).language()), "Language choice was not persisted");
-        check(((RadioButton) restarted.findViewById(R.id.language_english)).isChecked()
+        check(((android.widget.Spinner) restarted.findViewById(R.id.language_spinner)).getSelectedItemPosition() == 2
                 && hasText(restarted.getWindow().getDecorView(), "Alarm time"), "Language choice was lost on reopen");
 
-        runOnMainSync(() -> ((RadioButton) restarted.findViewById(R.id.language_korean)).setChecked(true));
+        runOnMainSync(() -> ((android.widget.Spinner) restarted.findViewById(R.id.language_spinner)).setSelection(1));
         await(restarted::isDestroyed, 3000, "Settings screen was not redrawn after returning to Korean");
         Activity korean = open(MainActivity.class);
         waitForIdleSync();
@@ -634,7 +634,7 @@ public final class AlarmInstrumentation extends Instrumentation {
             View decor = screen.getWindow().getDecorView();
             boolean large = window.mode == WindowLayoutPolicy.Mode.LARGE;
             int[] ids = {R.id.time_period, R.id.time_hour, R.id.time_minute, R.id.alarm_enabled, R.id.weekday_monday, R.id.weekday_sunday,
-                    R.id.lead_seconds, R.id.language_group, R.id.language_system, R.id.language_korean, R.id.language_english};
+                    R.id.lead_seconds, R.id.language_spinner};
             java.util.List<android.graphics.Rect> boxes = new java.util.ArrayList<>();
             for (int id : ids) {
                 View view = screen.findViewById(id);

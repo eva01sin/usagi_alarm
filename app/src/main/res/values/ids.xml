@@ -15,8 +15,5 @@
     <item name="weekday_sunday" type="id" />
     <item name="overlay_panel" type="id" />
     <item name="overlay_open_settings" type="id" />
-    <item name="language_group" type="id" />
-    <item name="language_system" type="id" />
-    <item name="language_korean" type="id" />
-    <item name="language_english" type="id" />
+    <item name="language_spinner" type="id" />
 </resources>

@@ -1,5 +1,11 @@
 # 기능 검증 결과
 
+## v1.3.1 언어 드롭다운·위젯 여백 · 2026-11-03
+
+- 변경: 언어 선택 UI를 `Spinner` 드롭다운으로 교체(`MainActivity.languagePanel`, id `language_spinner`), 위젯 레이아웃 `paddingStart` 12dp→8dp. 에뮬레이터 시험 `language`·`foldWindow`·`foldSettings`의 언어 관련 확인을 드롭다운 기준으로 수정.
+- 실행: `assembleDebug`·`assembleDebugAndroidTest`·`testDebugUnitTest`(40개)·`lintDebug` 성공.
+- **미실행**: 에뮬레이터가 없어 `language` 시나리오와 화면 확인(드롭다운 모양, 위젯 여백)은 하지 못했습니다. 실제 기기 확인 필요.
+
 ## v1.3.0 릴리스 시점 상태 · 2026-11-03
 
 - 최종 재검증 4 이후 시험 코드만 변경했습니다: `checkRingingWindow` 사전 알림 단계(AlarmInstrumentation 약 679~687행)를 `awaitCheck`(5초)로 감쌌습니다. 제품 코드 변경은 없습니다.

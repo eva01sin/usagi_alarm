@@ -1,7 +1,7 @@
 # 우사기 알람
 <img width="144" height="312" alt="KakaoTalk_20261028_101825647" src="https://github.com/user-attachments/assets/06d465c5-14f3-4864-a922-7899e4160b92" />
 
-[**APK 다운로드 · usagi_alarm_v1.3.0.apk (v1.3.0)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.3.0/usagi_alarm_v1.3.0.apk)
+[**APK 다운로드 · usagi_alarm_v1.3.1.apk (v1.3.1)**](https://github.com/eva01sin/usagi_alarm/releases/download/v1.3.1/usagi_alarm_v1.3.1.apk)
 
 Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입니다. 서버·회원가입·복용 기록은 없습니다.
 
@@ -10,6 +10,12 @@ Android 8.0 이상, Android 기본 UI와 Java 17을 사용하는 로컬 앱입�
 변조하지마시고 자유로이 사용해주세요. 다만 출처는 남겨 주시기 바랍니다.
 
 ## 업데이트 내역
+
+### v1.3.1 · 2026-11-03
+
+- 설정 화면의 언어 선택을 세로로 늘어선 라디오 버튼에서 한 줄짜리 드롭다운 메뉴로 바꿨습니다. 누르면 `시스템 설정 따라가기` / `한국어` / `English`가 펼쳐지고, 고르면 화면이 바로 새 언어로 바뀝니다.
+- 홈 화면 위젯의 왼쪽 여백을 줄여, 숫자판과 테두리 사이 간격이 왼쪽·위·아래 모두 같아졌습니다.
+- 에뮬레이터에서 새 화면을 직접 확인하지 못했습니다(빌드·단위 테스트·lint만 통과).
 
 ### v1.3.0 · 2026-11-03
 

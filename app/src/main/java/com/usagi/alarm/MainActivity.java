@@ -139,7 +139,7 @@ public final class MainActivity extends Activity {
         // 큰 창은 버전 표기를 오른쪽 아래 모서리에 겹쳐 두어(아래 참고) 스크롤 영역이 창 끝까지 쓰이게 한다.
         scrollBounds.bottomMargin = largeWindow ? 0 : dp(52);
         root.addView(scroll, scrollBounds);
-        TextView footer = text("ver.1.3.0\neva01sin@naver.com", 10);
+        TextView footer = text("ver.1.3.1\neva01sin@naver.com", 10);
         footer.setGravity(Gravity.CENTER);
         footer.setPadding(dp(10), dp(4), dp(10), dp(4));
         footer.setBackground(shape(0xE6FFFAF0, 8));
@@ -234,32 +234,38 @@ public final class MainActivity extends Activity {
     private LinearLayout languagePanel() {
         LinearLayout box = panel();
         box.addView(text(getString(R.string.language_title), 14));
-        RadioGroup group = new RadioGroup(this); group.setId(R.id.language_group);
-        int[] ids = {R.id.language_system, R.id.language_korean, R.id.language_english};
         int[] labels = {R.string.language_system, R.string.language_korean, R.string.language_english};
         String[] choices = {LanguagePolicy.SYSTEM, LanguagePolicy.KOREAN, LanguagePolicy.ENGLISH};
+        String[] names = new String[labels.length];
         int selected = 0;
-        for (int i = 0; i < ids.length; i++) {
-            RadioButton option = new RadioButton(this);
-            option.setId(ids[i]); option.setText(labels[i]); option.setTextColor(INK);
-            // 선택은 항상 저장소 값에서 정하므로 화면 상태 복원이 선택을 바꾸지 못하게 한다.
-            option.setSaveEnabled(false);
-            option.setButtonTintList(ColorStateList.valueOf(ACCENT));
-            group.addView(option, new RadioGroup.LayoutParams(-1, dp(48)));
+        for (int i = 0; i < labels.length; i++) {
+            names[i] = getString(labels[i]);
             if (choices[i].equals(store.language())) selected = i;
         }
-        group.check(ids[selected]);
+        Spinner spinner = new Spinner(this); spinner.setId(R.id.language_spinner);
+        // 선택은 항상 저장소 값에서 정하므로 화면 상태 복원이 선택을 바꾸지 못하게 한다.
+        spinner.setSaveEnabled(false);
+        spinner.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, names) {
+            @Override public View getView(int position, View convertView, ViewGroup parent) {
+                return tint(super.getView(position, convertView, parent));
+            }
+            @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                return tint(super.getDropDownView(position, convertView, parent));
+            }
+            private View tint(View row) { ((TextView) row).setTextColor(INK); return row; }
+        });
+        spinner.setSelection(selected, false);
         // 리스너는 초기 선택 뒤에 달아, 화면을 만드는 중에는 다시 그리기가 일어나지 않는다.
-        group.setOnCheckedChangeListener((radios, id) -> {
-            if (updating) return;
-            for (int i = 0; i < ids.length; i++) {
-                if (ids[i] != id || choices[i].equals(store.language())) continue;
-                store.language(choices[i]);
-                AlarmWidget.updateAll(this);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (updating || choices[position].equals(store.language())) return;
+                store.language(choices[position]);
+                AlarmWidget.updateAll(MainActivity.this);
                 recreate();
             }
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
-        box.addView(group);
+        box.addView(spinner, new LinearLayout.LayoutParams(-1, dp(48)));
         return box;
     }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
