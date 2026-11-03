@@ -7,6 +7,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Matrix;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.view.View;
 import android.os.SystemClock;
@@ -54,7 +55,30 @@ final class UsagiClockView extends View {
     }
 
     private void updateDescription() {
-        setContentDescription((alarmRinging ? "본 알람" : "사전 알림") + ", 현재 시각 " + time);
+        setContentDescription(getContext().getString(R.string.clock_description,
+                getContext().getString(alarmRinging ? R.string.clock_main : R.string.clock_pre), time));
+    }
+
+    /** 현재 창 크기에서 그림을 채우는 위치. 창 비율이 바뀌면(폴드·회전) 매번 다시 계산하므로 별도 상태가 없다. */
+    private ArtworkCrop cropFor(Bitmap artwork) {
+        return ArtworkCrop.of(getWidth(), getHeight(), artwork.getWidth(), artwork.getHeight(),
+                alarmRinging ? ArtworkCrop.ALARM_KEEP : ArtworkCrop.SCENE_KEEP,
+                alarmRinging ? ArtworkCrop.ALARM_ESSENTIAL : ArtworkCrop.SCENE_ESSENTIAL);
+    }
+
+    /**
+     * 시계 숫자가 그려지는 흰 영역의 창 안 위치(흔들림 없음). 숫자가 화면 밖으로 나가거나 버튼에 가려지는지
+     * 계측 시험에서 확인하는 용도이며 onDraw와 같은 크롭 결과를 쓴다.
+     */
+    RectF clockPanelBounds() {
+        float[] panel = alarmRinging ? ALARM_PANEL : PRE_PANEL;
+        ArtworkCrop crop = cropFor(alarmRinging ? alarmScene : scene);
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        for (int i = 0; i < 8; i += 2) {
+            float x = panel[i] * crop.scale + crop.left, y = panel[i + 1] * crop.scale + crop.top;
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+        }
+        return new RectF(minX, minY, maxX, maxY);
     }
 
     void updateTime(long now) {
@@ -69,9 +93,8 @@ final class UsagiClockView extends View {
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         Bitmap artwork = alarmRinging ? alarmScene : scene;
-        float scale = Math.max(getWidth() / (float) artwork.getWidth(), getHeight() / (float) artwork.getHeight());
-        float left = (getWidth() - artwork.getWidth() * scale) / 2;
-        float top = (getHeight() - artwork.getHeight() * scale) / 2;
+        ArtworkCrop crop = cropFor(artwork);
+        float scale = crop.scale, left = crop.left, top = crop.top;
         canvas.save();
         float density = getResources().getDisplayMetrics().density;
         double t = SystemClock.uptimeMillis() / 1000.0;

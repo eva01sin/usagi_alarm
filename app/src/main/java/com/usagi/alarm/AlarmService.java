@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
@@ -19,6 +20,7 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.Log;
 import java.util.Random;
 
@@ -46,15 +48,18 @@ public final class AlarmService extends Service {
     static volatile long activeTarget;
     static volatile int activeLeadSeconds;
 
+    // 앱이 꺼진 상태에서 시작돼도 알림 문구가 설정 언어를 따르도록 Context에 언어를 적용한다.
+    @Override protected void attachBaseContext(Context base) { super.attachBaseContext(LocaleHelper.wrap(base)); }
+
     @Override public void onCreate() {
         super.onCreate();
-        NotificationChannel channel = new NotificationChannel(CHANNEL, "울리는 알람", NotificationManager.IMPORTANCE_HIGH);
-        channel.setDescription("사전 알림과 본 알람의 재생 및 종료");
+        NotificationChannel channel = new NotificationChannel(CHANNEL, getString(R.string.channel_alarm_name), NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription(getString(R.string.channel_alarm_description));
         channel.setSound(null, null);
         channel.enableVibration(false);
         getSystemService(NotificationManager.class).createNotificationChannel(channel);
-        NotificationChannel playback = new NotificationChannel(PLAYBACK_CHANNEL, "알람 재생 상태", NotificationManager.IMPORTANCE_LOW);
-        playback.setDescription("상단 카드 없이 알림 목록에서 재생 상태 확인 및 종료");
+        NotificationChannel playback = new NotificationChannel(PLAYBACK_CHANNEL, getString(R.string.channel_playback_name), NotificationManager.IMPORTANCE_LOW);
+        playback.setDescription(getString(R.string.channel_playback_description));
         playback.setSound(null, null);
         playback.enableVibration(false);
         getSystemService(NotificationManager.class).createNotificationChannel(playback);
@@ -83,7 +88,7 @@ public final class AlarmService extends Service {
         if (requestedTarget == 0) { stopSelf(); return START_NOT_STICKY; }
         if (running) {
             // The exact main alarm is a fallback, not a second audio player.
-            if (requestedTarget != target) new AlarmStore(this).error("다른 알람이 이미 재생 중입니다.");
+            if (requestedTarget != target) new AlarmStore(this).error(AlarmStore.ERROR_ALREADY_PLAYING);
             else if (SCREEN_VISIBLE.equals(intent.getAction()) && RingingActivity.visible) showQuietNotification();
             return START_REDELIVER_INTENT;
         }
@@ -93,6 +98,7 @@ public final class AlarmService extends Service {
         boolean pre = target > System.currentTimeMillis();
         notificationId = pre ? NOTIFICATION : MAIN_NOTIFICATION;
         startForeground(notificationId, notification(pre, false));
+        openScreenIfAllowed();
         soundLevel = 0f;
         running = true;
         active = true;
@@ -104,7 +110,7 @@ public final class AlarmService extends Service {
         focus = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 .setAudioAttributes(attributes).setOnAudioFocusChangeListener(change -> {
                     if (change == AudioManager.AUDIOFOCUS_LOSS) {
-                        new AlarmStore(this).error("다른 앱이 오디오 사용권을 가져가 알람이 종료됐습니다.");
+                        new AlarmStore(this).error(AlarmStore.ERROR_FOCUS_LOST);
                         stopSelf();
                     } else {
                         focusVolume = change == AudioManager.AUDIOFOCUS_GAIN ? 1f : 0f;
@@ -141,8 +147,25 @@ public final class AlarmService extends Service {
             notificationId = MAIN_NOTIFICATION;
             startForeground(notificationId, notification(false, false));
             if (previousId != notificationId) getSystemService(NotificationManager.class).cancel(previousId);
+            openScreenIfAllowed();
         }
     };
+
+    /**
+     * 기기를 사용 중이면 전체 화면 intent가 상단 알림 카드로만 표시되므로, '다른 앱 위에 표시' 권한이 있을 때
+     * 알람 화면을 서비스가 직접 연다. 권한이 없거나 화면이 이미 떠 있으면 아무것도 하지 않는다(알림은 항상 폴백으로 유지).
+     * singleTop + SINGLE_TOP 플래그라 열리는 중에 다시 불려도 화면이 겹치지 않는다.
+     */
+    private void openScreenIfAllowed() {
+        if (!ScreenLaunchPolicy.shouldOpenDirectly(Settings.canDrawOverlays(this), RingingActivity.visible)) return;
+        try {
+            startActivity(new Intent(this, RingingActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+        } catch (RuntimeException e) {
+            // 직접 열기가 막혀도 알림의 전체 화면 intent와 알림 탭이 남아 있으므로 알람 재생은 계속한다.
+            Log.w("UsagiAlarm", "Could not open the alarm screen directly", e);
+        }
+    }
 
     private void showQuietNotification() {
         int previousId = notificationId;
@@ -157,11 +180,11 @@ public final class AlarmService extends Service {
         PendingIntent stop = PendingIntent.getService(this, 11, new Intent(this, AlarmService.class).setAction(STOP),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder builder = new Notification.Builder(this, quiet ? PLAYBACK_CHANNEL : CHANNEL)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setContentTitle(pre ? "우사기 사전 알림" : "우사기 알람")
-                .setContentText(pre ? "정해진 시각에 본 알람으로 전환됩니다." : "끄기를 누를 때까지 반복합니다.")
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setContentTitle(getString(pre ? R.string.notification_pre_title : R.string.notification_main_title))
+                .setContentText(getString(pre ? R.string.notification_pre_text : R.string.notification_main_text))
                 .setCategory(quiet ? Notification.CATEGORY_SERVICE : Notification.CATEGORY_ALARM)
                 .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(screen)
-                .addAction(new Notification.Action.Builder(null, "알람 끄기", stop).build());
+                .addAction(new Notification.Action.Builder(null, getString(R.string.stop_alarm), stop).build());
         if (!quiet && !RingingActivity.visible && (Build.VERSION.SDK_INT < 34
                 || getSystemService(NotificationManager.class).canUseFullScreenIntent())) {
             builder.setFullScreenIntent(screen, true);
@@ -217,7 +240,7 @@ public final class AlarmService extends Service {
             }
         } catch (Exception e) {
             if (running) {
-                new AlarmStore(this).error("오디오 재생 실패: " + e.getMessage());
+                new AlarmStore(this).error(AlarmStore.ERROR_AUDIO_FAILED, String.valueOf(e.getMessage()));
                 handler.post(this::stopSelf);
             }
         } finally {

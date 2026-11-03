@@ -1,5 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_name">우사기 알람</string>
-    <string name="widget_enable">켜기</string>
-    <string name="widget_description">현재 시각을 확인하고 알람을 켜거나 끌 수 있어요</string>
+    <string name="app_name">Usagi Alarm</string>
+    <string name="widget_name">Usagi Alarm</string>
+    <string name="widget_enable">Turn on</string>
+    <string name="widget_description">Check the current time and turn the alarm on or off</string>
+
+    <!-- Settings screen -->
+    <string name="subtitle">Start softly, wake up happy</string>
+    <string name="alarm_time">Alarm time</string>
+    <string name="period_am">AM</string>
+    <string name="period_pm">PM</string>
+    <string name="hour_unit">Hour</string>
+    <string name="minute_unit">Minute</string>
+    <string name="enable_alarm">Turn on alarm</string>
+    <string name="repeat_days">Repeat on</string>
+    <string-array name="weekday_short">
+        <item>Mon</item>
+        <item>Tue</item>
+        <item>Wed</item>
+        <item>Thu</item>
+        <item>Fri</item>
+        <item>Sat</item>
+        <item>Sun</item>
+    </string-array>
+    <string-array name="weekday_repeat_description">
+        <item>Repeat on Monday</item>
+        <item>Repeat on Tuesday</item>
+        <item>Repeat on Wednesday</item>
+        <item>Repeat on Thursday</item>
+        <item>Repeat on Friday</item>
+        <item>Repeat on Saturday</item>
+        <item>Repeat on Sunday</item>
+    </string-array>
+    <string name="repeat_once_hint">If no day is selected, it rings only once</string>
+    <string name="lead_label">Pre-alarm</string>
+    <string name="lead_description">Pre-alarm time (seconds)</string>
+    <string name="lead_suffix">"  sec before"</string>
+    <string name="range_error">Enter a value between %1$d and %2$d</string>
+    <string name="status_checking">Checking notification permission</string>
+    <string name="status_dirty">Saves automatically when you finish typing</string>
+    <string name="status_snooze">Snoozed · %1$s</string>
+    <string name="status_next">Next alarm · %1$s</string>
+    <string name="status_off">Alarm is off · Settings save automatically</string>
+    <string name="overlay_hint">Allow \"Display over other apps\" so the alarm screen opens right away even while you are using another app.</string>
+    <string name="overlay_open_settings">Open settings</string>
+    <string name="language_title">Language</string>
+    <string name="language_system">Follow system settings</string>
+    <!-- 언어 이름은 어느 언어 화면에서든 자기 언어로 표기한다 -->
+    <string name="language_korean" translatable="false">한국어</string>
+    <string name="language_english" translatable="false">English</string>
+
+    <!-- Ringing screen and notifications -->
+    <string name="snooze_button">5 more min...</string>
+    <string name="stop_alarm">Turn off alarm</string>
+    <string name="clock_pre">Pre-alarm</string>
+    <string name="clock_main">Main alarm</string>
+    <string name="clock_description">%1$s, current time %2$s</string>
+    <string name="notification_pre_title">Usagi pre-alarm</string>
+    <string name="notification_main_title">Usagi Alarm</string>
+    <string name="notification_pre_text">Switches to the main alarm at the set time.</string>
+    <string name="notification_main_text">Repeats until you turn it off.</string>
+    <string name="channel_alarm_name">Ringing alarm</string>
+    <string name="channel_alarm_description">Playback and dismissal of the pre-alarm and main alarm</string>
+    <string name="channel_playback_name">Alarm playback status</string>
+    <string name="channel_playback_description">Check playback and stop it from the notification list, without a pop-up card</string>
+
+    <!-- Widget -->
+    <string name="widget_status_next">Next alarm · %1$s</string>
+    <string name="widget_status_snooze">Snoozed · %1$s</string>
+    <string name="widget_status_off">Alarm is off</string>
+    <string name="widget_status_permission">Tap to check alarm permissions</string>
+    <string name="widget_clock_description">%1$s, current time, %2$s</string>
+    <string name="widget_toggle_off_alarm">Usagi · Turn off alarm</string>
+    <string name="widget_toggle_on_alarm">Momonga · Turn on alarm</string>
+
+    <!-- Error messages -->
+    <string name="error_service_start">Could not start the alarm service: %1$s</string>
+    <string name="error_permission">Allow notifications and exact alarms, then turn the alarm on again.</string>
+    <string name="error_exact_alarm">Cannot schedule the alarm without the exact alarm permission.</string>
+    <string name="error_snooze_permission">Please check the snooze permissions.</string>
+    <string name="error_snooze_exact_alarm">Could not schedule the snooze without the exact alarm permission.</string>
+    <string name="error_already_playing">Another alarm is already playing.</string>
+    <string name="error_focus_lost">Another app took over audio, so the alarm was stopped.</string>
+    <string name="error_audio_failed">Audio playback failed: %1$s</string>
 </resources>

@@ -27,7 +27,7 @@ public final class AlarmReceiver extends BroadcastReceiver {
             context.startForegroundService(new Intent(context, AlarmService.class)
                     .putExtra("target", target).putExtra("lead", lead));
         } catch (RuntimeException e) {
-            store.error("알람 서비스를 시작하지 못했습니다: " + e.getClass().getSimpleName());
+            store.error(AlarmStore.ERROR_SERVICE_START, e.getClass().getSimpleName());
         }
     }
 }

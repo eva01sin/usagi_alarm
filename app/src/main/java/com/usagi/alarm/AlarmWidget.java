@@ -62,7 +62,9 @@ public final class AlarmWidget extends AppWidgetProvider {
         manager.set(android.app.AlarmManager.RTC, nextMinute, tick);
     }
 
+    // 위젯은 앱이 꺼진 상태에서도 그려지므로, 호출 경로와 무관하게 여기서 설정 언어를 적용한다.
     static RemoteViews views(Context context, long now) {
+        Context localized = LocaleHelper.wrap(context);
         AlarmStore store = new AlarmStore(context);
         AlarmScheduler scheduler = new AlarmScheduler(context);
         boolean enabled = store.enabled() || store.snoozeTarget() > 0;
@@ -70,10 +72,14 @@ public final class AlarmWidget extends AppWidgetProvider {
         boolean snoozed = store.snoozeTarget() > 0 && (next == 0 || store.snoozeTarget() < next);
         if (snoozed) next = store.snoozeTarget();
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.alarm_widget);
-        String status = enabled ? (snoozed ? "다시 알림 · " : "다음 알람 · ")
-                + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(next)) : "알람이 꺼져 있어요";
-        if (!scheduler.permitted()) status = "눌러서 알람 권한을 확인해 주세요";
-        else if (!store.error().isEmpty()) status = store.error();
+        String status = localized.getString(R.string.widget_status_off);
+        if (enabled) {
+            String when = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT,
+                    LocaleHelper.localeOf(localized)).format(new Date(next));
+            status = localized.getString(snoozed ? R.string.widget_status_snooze : R.string.widget_status_next, when);
+        }
+        if (!scheduler.permitted()) status = localized.getString(R.string.widget_status_permission);
+        else if (!store.error().isEmpty()) status = store.errorMessage(localized);
         java.time.LocalTime clockTime = java.time.Instant.ofEpochMilli(now)
                 .atZone(java.time.ZoneId.systemDefault()).toLocalTime();
         String time = clockTime.format(java.time.format.DateTimeFormatter.ofPattern("a hh:mm", java.util.Locale.US));
@@ -81,12 +87,12 @@ public final class AlarmWidget extends AppWidgetProvider {
         views.setImageViewBitmap(R.id.widget_status_blank, clockDigits(context, time, enabled, false));
         views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_background);
         views.setInt(R.id.widget_clock, "setBackgroundResource", enabled ? R.drawable.widget_dial : R.drawable.widget_dial_off);
-        views.setContentDescription(R.id.widget_status, time + ", 현재 시각, " + status);
-        views.setContentDescription(R.id.widget_clock, time + ", 현재 시각, " + status);
+        views.setContentDescription(R.id.widget_status, localized.getString(R.string.widget_clock_description, time, status));
+        views.setContentDescription(R.id.widget_clock, localized.getString(R.string.widget_clock_description, time, status));
         views.removeAllViews(R.id.widget_toggle);
         views.addView(R.id.widget_toggle, new RemoteViews(context.getPackageName(),
                 enabled ? R.layout.widget_face_on : R.layout.widget_face_off));
-        views.setContentDescription(R.id.widget_toggle, enabled ? "우사기 · 알람 끄기" : "모몽가 · 알람 켜기");
+        views.setContentDescription(R.id.widget_toggle, localized.getString(enabled ? R.string.widget_toggle_off_alarm : R.string.widget_toggle_on_alarm));
         PendingIntent open = PendingIntent.getActivity(context, 20, new Intent(context, MainActivity.class),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         PendingIntent toggle = PendingIntent.getBroadcast(context, 21,

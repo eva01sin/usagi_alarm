@@ -82,7 +82,7 @@ final class AlarmScheduler {
         AlarmWidget.updateAll(context);
         if (!store.enabled()) return;
         if (!permitted()) {
-            store.error("알림 및 정확한 알람 권한을 허용한 뒤 다시 켜 주세요.");
+            store.error(AlarmStore.ERROR_PERMISSION);
             AlarmWidget.updateAll(context);
             return;
         }
@@ -98,7 +98,7 @@ final class AlarmScheduler {
             store.error("");
         } catch (SecurityException e) {
             cancel();
-            store.error("정확한 알람 권한이 없어 예약할 수 없습니다.");
+            store.error(AlarmStore.ERROR_EXACT_ALARM);
         }
         AlarmWidget.updateAll(context);
     }
@@ -132,7 +132,7 @@ final class AlarmScheduler {
     }
 
     private boolean scheduleSnooze(long retry) {
-        if (!permitted()) { store.error("다시 알림 권한을 확인해 주세요."); return false; }
+        if (!permitted()) { store.error(AlarmStore.ERROR_SNOOZE_PERMISSION); return false; }
         PendingIntent show = PendingIntent.getActivity(context, 0, new Intent(context, MainActivity.class),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         try {
@@ -140,7 +140,7 @@ final class AlarmScheduler {
             store.error("");
             return true;
         } catch (SecurityException e) {
-            store.error("정확한 알람 권한이 없어 다시 알림을 예약하지 못했습니다.");
+            store.error(AlarmStore.ERROR_SNOOZE_EXACT_ALARM);
             return false;
         }
     }

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">우사기 알람</string>
+    <string name="widget_name">우사기 알람</string>
+    <string name="widget_enable">켜기</string>
+    <string name="widget_description">현재 시각을 확인하고 알람을 켜거나 끌 수 있어요</string>
+
+    <!-- 설정 화면 -->
+    <string name="subtitle">작은 소리부터, 기분 좋은 아침</string>
+    <string name="alarm_time">알람 시간</string>
+    <string name="period_am">오전</string>
+    <string name="period_pm">오후</string>
+    <string name="hour_unit">시</string>
+    <string name="minute_unit">분</string>
+    <string name="enable_alarm">알림 켜기</string>
+    <string name="repeat_days">반복 요일</string>
+    <string-array name="weekday_short">
+        <item>월</item>
+        <item>화</item>
+        <item>수</item>
+        <item>목</item>
+        <item>금</item>
+        <item>토</item>
+        <item>일</item>
+    </string-array>
+    <string-array name="weekday_repeat_description">
+        <item>월요일 반복</item>
+        <item>화요일 반복</item>
+        <item>수요일 반복</item>
+        <item>목요일 반복</item>
+        <item>금요일 반복</item>
+        <item>토요일 반복</item>
+        <item>일요일 반복</item>
+    </string-array>
+    <string name="repeat_once_hint">선택하지 않으면 한 번만 울려요</string>
+    <string name="lead_label">사전 알림</string>
+    <string name="lead_description">사전 알림 시간 (초)</string>
+    <string name="lead_suffix">"  초 전"</string>
+    <string name="range_error">%1$d~%2$d 사이로 입력해 주세요</string>
+    <string name="status_checking">알림 권한을 확인하고 있어요</string>
+    <string name="status_dirty">입력을 마치면 자동 저장돼요</string>
+    <string name="status_snooze">다시 알림 · %1$s</string>
+    <string name="status_next">다음 알림 · %1$s</string>
+    <string name="status_off">알림이 꺼져 있어요 · 설정은 자동 저장돼요</string>
+    <string name="overlay_hint">알람이 울릴 때 다른 앱을 쓰는 중에도 알람 화면이 바로 뜨도록 \'다른 앱 위에 표시\'를 허용하세요.</string>
+    <string name="overlay_open_settings">설정 열기</string>
+    <string name="language_title">언어</string>
+    <string name="language_system">시스템 설정 따라가기</string>
+
+    <!-- 울림 화면과 알림 -->
+    <string name="snooze_button">5분만...</string>
+    <string name="stop_alarm">알람 끄기</string>
+    <string name="clock_pre">사전 알림</string>
+    <string name="clock_main">본 알람</string>
+    <string name="clock_description">%1$s, 현재 시각 %2$s</string>
+    <string name="notification_pre_title">우사기 사전 알림</string>
+    <string name="notification_main_title">우사기 알람</string>
+    <string name="notification_pre_text">정해진 시각에 본 알람으로 전환됩니다.</string>
+    <string name="notification_main_text">끄기를 누를 때까지 반복합니다.</string>
+    <string name="channel_alarm_name">울리는 알람</string>
+    <string name="channel_alarm_description">사전 알림과 본 알람의 재생 및 종료</string>
+    <string name="channel_playback_name">알람 재생 상태</string>
+    <string name="channel_playback_description">상단 카드 없이 알림 목록에서 재생 상태 확인 및 종료</string>
+
+    <!-- 위젯 -->
+    <string name="widget_status_next">다음 알람 · %1$s</string>
+    <string name="widget_status_snooze">다시 알림 · %1$s</string>
+    <string name="widget_status_off">알람이 꺼져 있어요</string>
+    <string name="widget_status_permission">눌러서 알람 권한을 확인해 주세요</string>
+    <string name="widget_clock_description">%1$s, 현재 시각, %2$s</string>
+    <string name="widget_toggle_off_alarm">우사기 · 알람 끄기</string>
+    <string name="widget_toggle_on_alarm">모몽가 · 알람 켜기</string>
+
+    <!-- 오류 문구 -->
+    <string name="error_service_start">알람 서비스를 시작하지 못했습니다: %1$s</string>
+    <string name="error_permission">알림 및 정확한 알람 권한을 허용한 뒤 다시 켜 주세요.</string>
+    <string name="error_exact_alarm">정확한 알람 권한이 없어 예약할 수 없습니다.</string>
+    <string name="error_snooze_permission">다시 알림 권한을 확인해 주세요.</string>
+    <string name="error_snooze_exact_alarm">정확한 알람 권한이 없어 다시 알림을 예약하지 못했습니다.</string>
+    <string name="error_already_playing">다른 알람이 이미 재생 중입니다.</string>
+    <string name="error_focus_lost">다른 앱이 오디오 사용권을 가져가 알람이 종료됐습니다.</string>
+    <string name="error_audio_failed">오디오 재생 실패: %1$s</string>
+</resources>
